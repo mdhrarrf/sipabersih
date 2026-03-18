@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/water_measure.dart';
 import '../models/analysis_result.dart';
@@ -13,7 +12,7 @@ class HistoryItem {
 class HistoryService {
   static final _supabase = Supabase.instance.client;
 
-  // 1. SIMPAN DATA KE CLOUD SUPABASE (Sudah benar)
+  // 1. FUNGSI SIMPAN (Tetap Sama)
   static Future<void> addHistory(
     WaterMeasure measure,
     AnalysisResult result,
@@ -27,37 +26,29 @@ class HistoryService {
       'tds': measure.tds,
       'turbidity': measure.turbidity,
       'temperature': measure.temperature,
-      'latitude': measure.latitude, // KIRIM KE CLOUD
-      'longitude': measure.longitude, // KIRIM KE CLOUD
+      'latitude': measure.latitude,
+      'longitude': measure.longitude,
       'status': result.status,
       'score': result.score,
     });
   }
 
-  // 2. AMBIL SEMUA DATA (Sinkronisasi Koordinat)
+  // 2. AMBIL DATA (Fungsi Pengurutan Manual Paling Akurat)
   static Future<List<HistoryItem>> getHistory() async {
-    final response = await _supabase
-        .from('water_measures')
-        .select()
-        .order('created_at', ascending: true);
-
+    final response = await _supabase.from('water_measures').select();
     final List data = response as List;
 
-    return data.map((item) {
-      final measure = WaterMeasure(
-        id: item['id'],
-        ph: (item['ph'] as num).toDouble(),
-        tds: (item['tds'] as num).toDouble(),
-        turbidity: (item['turbidity'] as num).toDouble(),
-        temperature: (item['temperature'] as num).toDouble(),
-        latitude: (item['latitude'] as num).toDouble(), // AMBIL DARI CLOUD
-        longitude: (item['longitude'] as num).toDouble(), // AMBIL DARI CLOUD
-        timestamp: DateTime.parse(item['created_at']),
-      );
-
+    final List<HistoryItem> items = data.map((item) {
+      final measure = WaterMeasure.fromMap(item);
       final analysisResult = AnalysisService.calculateQuality(measure);
       return HistoryItem(measure: measure, result: analysisResult);
     }).toList();
+
+    // --- KUNCI: URUTKAN MANUAL DI SINI ---
+    // Membandingkan waktu: Jika waktu b lebih baru dari a, maka b di atas.
+    items.sort((a, b) => b.measure.timestamp.compareTo(a.measure.timestamp));
+
+    return items;
   }
 
   static Future<HistoryItem?> getLastData() async {
@@ -69,32 +60,22 @@ class HistoryService {
     await _supabase.from('water_measures').delete().eq('id', id);
   }
 
-  // 3. STREAM DATA (Sinkronisasi Koordinat)
+  // 3. STREAM DATA (Pengurutan Manual Real-time)
   static Stream<List<HistoryItem>> getHistoryStream() {
-    return _supabase
-        .from('water_measures')
-        .stream(primaryKey: ['id'])
-        .order('created_at')
-        .handleError((error) {
-          // Tangkap error secara diam-diam agar tidak spamming
-          debugPrint(
-            "INFO: Aliran data tertunda/putus. Menghubungkan kembali...",
-          );
-        })
-        .map((data) {
-          return data
-              .map((item) {
-                final measure = WaterMeasure.fromMap(
-                  item,
-                ); // Gunakan fromMap agar rapi
-                final analysisResult = AnalysisService.calculateQuality(
-                  measure,
-                );
-                return HistoryItem(measure: measure, result: analysisResult);
-              })
-              .toList()
-              .reversed
-              .toList();
-        });
+    return _supabase.from('water_measures').stream(primaryKey: ['id']).map((
+      data,
+    ) {
+      final List<HistoryItem> items = data.map((item) {
+        final measure = WaterMeasure.fromMap(item);
+        final analysisResult = AnalysisService.calculateQuality(measure);
+        return HistoryItem(measure: measure, result: analysisResult);
+      }).toList();
+
+      // --- KUNCI: URUTKAN MANUAL DI DALAM STREAM ---
+      // Memastikan data terbaru yang baru masuk cloud langsung loncat ke urutan teratas
+      items.sort((a, b) => b.measure.timestamp.compareTo(a.measure.timestamp));
+
+      return items;
+    });
   }
 }
