@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  sqflite: ^2.3.0  # Database SQL untuk Flutter
+  path: ^1.9.0     # Untuk mengatur lokasi folder database di Android
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
