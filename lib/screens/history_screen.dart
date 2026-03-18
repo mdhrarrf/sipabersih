@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/history_service.dart';
 import '../services/report_service.dart';
+import '../services/auth_service.dart'; // Tambahkan import ini
 import '../utils/constants.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -24,23 +25,49 @@ class HistoryScreen extends StatelessWidget {
             tooltip: "Ekspor PDF",
             icon: const Icon(Icons.picture_as_pdf_rounded),
             onPressed: () async {
-              final history = await HistoryService.getHistory();
-              if (history.isNotEmpty) {
-                await ReportService.generatePdfReport(history);
+              // 1. Tampilkan notifikasi loading
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Sedang mengambil data pusat...")),
+              );
+
+              // 2. Ambil data Riwayat & Profil secara bersamaan
+              final results = await Future.wait([
+                HistoryService.getHistory(),
+                AuthService().getProfile(),
+              ]);
+
+              final List<HistoryItem> history = results[0] as List<HistoryItem>;
+              final Map<String, dynamic>? profile =
+                  results[1] as Map<String, dynamic>?;
+
+              // 3. Validasi dan Cetak
+              if (history.isNotEmpty && profile != null) {
+                if (context.mounted) {
+                  await ReportService.generatePdfReport(
+                    history: history,
+                    officerName: profile['full_name'] ?? "Petugas Lapangan",
+                    officerId: profile['petugas_id'] ?? "SIPA-PRO",
+                  );
+                }
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Belum ada data untuk diekspor"),
-                  ),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Gagal cetak: Riwayat kosong atau profil tidak terbaca",
+                      ),
+                    ),
+                  );
+                }
               }
             },
           ),
           const SizedBox(width: 10),
         ],
       ),
-      body: FutureBuilder<List<HistoryItem>>(
-        future: HistoryService.getHistory(),
+      body: StreamBuilder<List<HistoryItem>>(
+        // Gunakan Stream agar LIVE
+        stream: HistoryService.getHistoryStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -51,7 +78,7 @@ class HistoryScreen extends StatelessWidget {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                "Terjadi kesalahan: ${snapshot.error}",
+                "Terjadi kesalahan cloud: ${snapshot.error}",
                 style: AppStyles.body,
               ),
             );
@@ -91,7 +118,7 @@ class HistoryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            "Belum Ada Riwayat",
+            "Riwayat Kosong",
             style: AppStyles.h1.copyWith(
               fontSize: 20,
               color: AppColors.primaryDark,
@@ -99,7 +126,7 @@ class HistoryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            "Data yang Anda proses akan muncul di sini.",
+            "Data pengukuran cloud akan muncul di sini.",
             style: AppStyles.body,
           ),
         ],
@@ -141,33 +168,8 @@ class HistoryScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // 1. Mini Progress Indicator (Modern Visual)
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    height: 52,
-                    width: 52,
-                    child: CircularProgressIndicator(
-                      value: item.result.score / 100,
-                      strokeWidth: 4,
-                      backgroundColor: AppColors.lightBlue,
-                      color: item.result.color,
-                      strokeCap: StrokeCap.round,
-                    ),
-                  ),
-                  Text(
-                    "${item.result.score}",
-                    style: AppStyles.h2.copyWith(
-                      fontSize: 14,
-                      color: item.result.color,
-                    ),
-                  ),
-                ],
-              ),
+              _buildMiniScore(item),
               const SizedBox(width: 16),
-
-              // 2. Info Detail & Badge Status
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,7 +177,7 @@ class HistoryScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _statusBadge(item), // Badge Hijau/Kuning/Merah
+                        _statusBadge(item),
                         Text(
                           item.measure.timestamp.toString().substring(11, 16) +
                               " WIB",
@@ -209,6 +211,29 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildMiniScore(HistoryItem item) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        SizedBox(
+          height: 52,
+          width: 52,
+          child: CircularProgressIndicator(
+            value: item.result.score / 100,
+            strokeWidth: 4,
+            backgroundColor: AppColors.lightBlue,
+            color: item.result.color,
+            strokeCap: StrokeCap.round,
+          ),
+        ),
+        Text(
+          "${item.result.score}",
+          style: AppStyles.h2.copyWith(fontSize: 14, color: item.result.color),
+        ),
+      ],
+    );
+  }
+
   Widget _statusBadge(HistoryItem item) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -235,29 +260,17 @@ class HistoryScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: AppStyles.radiusM),
         title: Text("Hapus Riwayat?", style: AppStyles.h2),
         content: Text(
-          "Data ini akan dihapus permanen dari memori HP Anda.",
+          "Data ini akan dihapus permanen dari sistem pusat (Cloud).",
           style: AppStyles.body,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              "BATAL",
-              style: AppStyles.h2.copyWith(
-                fontSize: 13,
-                color: AppColors.textLight,
-              ),
-            ),
+            child: Text("BATAL", style: TextStyle(color: AppColors.textLight)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              "HAPUS",
-              style: AppStyles.h2.copyWith(
-                fontSize: 13,
-                color: AppColors.danger,
-              ),
-            ),
+            child: Text("HAPUS", style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),

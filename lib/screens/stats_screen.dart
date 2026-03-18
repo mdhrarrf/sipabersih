@@ -14,7 +14,7 @@ class StatsScreen extends StatelessWidget {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // 1. Header Dinamis (Konsisten dengan Home)
+          // 1. Header Dinamis
           SliverAppBar(
             expandedHeight: 120,
             pinned: true,
@@ -35,10 +35,11 @@ class StatsScreen extends StatelessWidget {
             ),
           ),
 
-          // 2. Konten Statistik
+          // 2. Konten Statistik Real-time
           SliverToBoxAdapter(
-            child: FutureBuilder<List<HistoryItem>>(
-              future: HistoryService.getHistory(),
+            child: StreamBuilder<List<HistoryItem>>(
+              stream:
+                  HistoryService.getHistoryStream(), // Mendengarkan aliran data dari Cloud
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
@@ -52,8 +53,11 @@ class StatsScreen extends StatelessWidget {
                 }
 
                 final history = snapshot.data ?? [];
+
+                // Cek jika data kurang dari 2 (Grafik butuh minimal 2 titik)
                 if (history.length < 2) return _buildEmptyState();
 
+                // Ambil daftar data mentah untuk grafik
                 final measures = history.map((e) => e.measure).toList();
 
                 return Padding(
@@ -61,7 +65,7 @@ class StatsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionHeader("Grafik TDS (ppm)"),
+                      _buildSectionHeader("Visualisasi Real-time TDS (ppm)"),
                       const SizedBox(height: 16),
 
                       // Kartu Grafik Premium
@@ -81,7 +85,7 @@ class StatsScreen extends StatelessWidget {
                       _buildSummaryGrid(measures),
 
                       const SizedBox(height: 32),
-                      _buildInsightCard(), // Kartu Edukasi Data
+                      _buildInsightCard(),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -113,11 +117,11 @@ class StatsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Text("Data Tidak Cukup", style: AppStyles.h2),
+          Text("Data Minim", style: AppStyles.h2),
           const SizedBox(height: 8),
-          Text(
-            "Input minimal 2 data sensor untuk melihat grafik tren perkembangan kualitas air.",
-            style: AppStyles.body,
+          const Text(
+            "Dibutuhkan minimal 2 data pengukuran untuk menampilkan tren statistik.",
+            style: TextStyle(color: AppColors.textLight),
             textAlign: TextAlign.center,
           ),
         ],
@@ -133,7 +137,7 @@ class StatsScreen extends StatelessWidget {
   }
 
   Widget _buildSummaryGrid(List<WaterMeasure> data) {
-    // Logika Analitik Rata-rata
+    // Logika Hitung Rata-rata Cloud Data
     double sumTds = 0;
     double sumPh = 0;
     for (var m in data) {
@@ -185,7 +189,7 @@ class StatsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.08),
+                color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 18),
@@ -213,13 +217,7 @@ class StatsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              style: AppStyles.caption.copyWith(
-                fontSize: 9,
-                letterSpacing: 0.5,
-              ),
-            ),
+            Text(title, style: AppStyles.caption.copyWith(fontSize: 9)),
           ],
         ),
       ),
@@ -230,7 +228,7 @@ class StatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient, // Gunakan gradasi biru mewah
+        gradient: AppColors.primaryGradient,
         borderRadius: AppStyles.radiusL,
         boxShadow: [
           BoxShadow(
@@ -247,15 +245,15 @@ class StatsScreen extends StatelessWidget {
               const Icon(Icons.insights_rounded, color: Colors.white, size: 24),
               const SizedBox(width: 12),
               Text(
-                "Interpretasi Data",
+                "Analisis Cerdas",
                 style: AppStyles.h2.copyWith(color: Colors.white),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            "Grafik menunjukkan kestabilan zat terlarut dalam air. Jika Anda mendeteksi lonjakan tajam pada grafik TDS, segera lakukan pembersihan pada filter karbon aktif dan sensor.",
-            style: AppStyles.body.copyWith(
+            "Sistem memantau tren TDS secara real-time. Penurunan garis grafik menunjukkan keberhasilan proses filtrasi di lokasi bencana.",
+            style: TextStyle(
               color: Colors.white.withOpacity(0.8),
               fontSize: 13,
               height: 1.6,
