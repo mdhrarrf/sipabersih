@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// Perbaikan: Gunakan relative import agar konsisten dengan file lain
 import 'result_screen.dart';
 import '../services/history_service.dart';
 import '../models/water_measure.dart';
@@ -24,7 +23,6 @@ class _InputDataScreenState extends State<InputDataScreen> {
 
   void _submitData() {
     if (_formKey.currentState!.validate()) {
-      // 1. Bungkus data ke dalam Model
       final newData = WaterMeasure(
         ph: double.parse(_phController.text),
         tds: double.parse(_tdsController.text),
@@ -33,13 +31,9 @@ class _InputDataScreenState extends State<InputDataScreen> {
         timestamp: DateTime.now(),
       );
 
-      // 2. Jalankan Logika Analisis
       final result = AnalysisService.calculateQuality(newData);
-
-      // 3. Simpan ke Riwayat (History)
       HistoryService.addHistory(newData, result);
 
-      // 4. Navigasi ke halaman hasil
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -52,70 +46,114 @@ class _InputDataScreenState extends State<InputDataScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Input Data Air")),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          "Input Data Air",
+          style: AppStyles.h2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primaryDark,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                "Parameter Sensor",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryBlue,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _buildTextField(
-                _phController,
-                "pH Air",
-                "6.5 - 8.5",
-                Icons.science,
-              ),
-              _buildTextField(
-                _tdsController,
-                "TDS (ppm)",
-                "< 300",
-                Icons.opacity,
-              ),
-              _buildTextField(
-                _turbidityController,
-                "Turbidity (NTU)",
-                "< 5",
-                Icons.waves,
-              ),
-              _buildTextField(
-                _tempController,
-                "Suhu (°C)",
-                "25 - 30",
-                Icons.thermostat,
-              ),
-
+              _buildHeaderInfo(),
               const SizedBox(height: 30),
 
+              // Kartu Group Input Bernuansa Biru
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: AppStyles.radiusL,
+                  boxShadow: AppStyles.softShadow,
+                ),
+                child: Column(
+                  children: [
+                    _buildTextField(
+                      _phController,
+                      "pH Air",
+                      "Contoh: 7.0",
+                      Icons.science_rounded,
+                    ),
+                    _buildTextField(
+                      _tdsController,
+                      "TDS (ppm)",
+                      "Contoh: 150",
+                      Icons.opacity_rounded,
+                    ),
+                    _buildTextField(
+                      _turbidityController,
+                      "Turbidity (NTU)",
+                      "Contoh: 3.5",
+                      Icons.waves_rounded,
+                    ),
+                    _buildTextField(
+                      _tempController,
+                      "Suhu (°C)",
+                      "Contoh: 27.5",
+                      Icons.thermostat_rounded,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Tombol Submit Biru Aksi
               ElevatedButton(
                 onPressed: _submitData,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
+                  backgroundColor: AppColors.accentBlue,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: AppStyles.radiusM,
+                  ),
+                  elevation: 8,
+                  shadowColor: AppColors.accentBlue.withOpacity(0.4),
+                ),
+                child: Text(
+                  "PROSES ANALISIS SEKARANG",
+                  style: AppStyles.h2.copyWith(
+                    color: Colors.white,
+                    fontSize: 15,
                   ),
                 ),
-                child: const Text(
-                  "PROSES ANALISIS",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
               ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Data Parameter",
+          style: AppStyles.h1.copyWith(
+            fontSize: 24,
+            color: AppColors.primaryDark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Masukkan hasil pembacaan sensor IoT untuk mendapatkan analisis kualitas air secara akurat.",
+          style: AppStyles.body.copyWith(color: AppColors.textLight),
+        ),
+      ],
     );
   }
 
@@ -126,23 +164,50 @@ class _InputDataScreenState extends State<InputDataScreen> {
     IconData icon,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15.0),
+      padding: const EdgeInsets.only(bottom: 24.0),
       child: TextFormField(
         controller: controller,
-        // Munculkan keyboard angka
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        style: AppStyles.h2.copyWith(fontSize: 16, color: AppColors.textDark),
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: AppStyles.caption.copyWith(
+            color: AppColors.primaryDark.withOpacity(0.6),
+          ),
           hintText: hint,
-          prefixIcon: Icon(icon, color: AppColors.primaryBlue),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          hintStyle: AppStyles.caption.copyWith(color: Colors.grey.shade400),
+          prefixIcon: Container(
+            margin: const EdgeInsets.only(right: 12, left: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.lightBlue, // Biru Muda Soft
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primaryDark, size: 20),
+          ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppColors.lightBlue.withOpacity(
+            0.3,
+          ), // Background input biru transparan
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none, // Tanpa garis kaku
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(
+              color: AppColors.accentBlue,
+              width: 1.5,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 20,
+            horizontal: 16,
+          ),
         ),
-        // Validasi agar tidak kosong
         validator: (value) {
           if (value == null || value.isEmpty) return "Wajib diisi";
-          if (double.tryParse(value) == null) return "Masukkan angka valid";
+          if (double.tryParse(value) == null) return "Gunakan angka valid";
           return null;
         },
       ),

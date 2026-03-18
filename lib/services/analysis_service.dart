@@ -1,55 +1,70 @@
 import 'package:flutter/material.dart';
 import '../models/water_measure.dart';
 import '../models/analysis_result.dart';
+import '../utils/constants.dart';
 
 class AnalysisService {
-  /// Fungsi utama untuk menghitung kualitas air berdasarkan standar kesehatan
+  /// Fungsi utama untuk menghitung Water Quality Index (WQI)
   static AnalysisResult calculateQuality(WaterMeasure data) {
     int score = 100;
     List<String> recommendations = [];
 
-    // 1. Logika pH (Standar: 6.5 - 8.5)
-    if (data.ph < 6.5 || data.ph > 8.5) {
+    // 1. Analisis pH (Standar Nasional: 6.5 - 8.5)
+    if (data.ph < 6.5) {
       score -= 30;
-      recommendations.add("Gunakan kapur/tawas untuk menyeimbangkan pH.");
-    }
-
-    // 2. Logika TDS (Standar: < 300 ppm)
-    if (data.tds > 300) {
-      score -= 40;
       recommendations.add(
-        "Gunakan filter Reverse Osmosis (RO) atau distilasi.",
+        "Air bersifat asam. Tambahkan zat penetral alkali atau kapur tohor.",
+      );
+    } else if (data.ph > 8.5) {
+      score -= 30;
+      recommendations.add(
+        "Air bersifat basa. Gunakan sistem filtrasi karbon atau penetral asam.",
       );
     }
 
-    // 3. Logika Turbidity / Kekeruhan (Standar: < 5 NTU)
-    if (data.turbidity > 5) {
-      score -= 30;
-      recommendations.add("Lakukan filtrasi dengan pasir/karbon aktif.");
+    // 2. Analisis TDS (Standar: < 300 ppm untuk air minum)
+    if (data.tds > 300) {
+      score -= 40;
+      recommendations.add(
+        "Zat terlarut tinggi. Lakukan filtrasi membran (Reverse Osmosis) segera.",
+      );
     }
 
-    // Penentuan Status Berdasarkan Skor Akhir
+    // 3. Analisis Turbidity / Kekeruhan (Standar: < 5 NTU)
+    if (data.turbidity > 5) {
+      score -= 30;
+      recommendations.add(
+        "Kekeruhan tinggi. Lakukan pengendapan (sedimentasi) dan filtrasi pasir.",
+      );
+    }
+
+    // Penentuan Status Berdasarkan Ambang Batas WQI
     String status;
     Color color;
 
     if (score >= 80) {
       status = "AMAN";
-      color = Colors.green;
-      recommendations.add("Air layak digunakan langsung.");
+      color = AppColors.success;
+      recommendations.add(
+        "Kualitas air optimal. Layak digunakan untuk sanitasi dan konsumsi.",
+      );
     } else if (score >= 50) {
       status = "PERLU FILTRASI";
-      color = Colors.orange;
-      recommendations.add("Rebus air hingga mendidih sebelum diminum.");
+      color = AppColors.warning;
+      recommendations.add(
+        "Kualitas air menurun. Wajib melalui proses filtrasi fisik sebelum digunakan.",
+      );
     } else {
       status = "TIDAK LAYAK";
-      color = Colors.red;
-      recommendations.add("Cari sumber air lain atau lakukan pemurnian total.");
+      color = AppColors.danger;
+      recommendations.add(
+        "Bahaya kontaminasi tinggi. Cari sumber air alternatif atau lakukan pemurnian total.",
+      );
     }
 
-    // Mengembalikan objek AnalysisResult yang sudah terisi
     return AnalysisResult(
       status: status,
-      score: score < 0 ? 0 : score, // Skor minimal adalah 0
+      score: score < 0 ? 0 : score,
       color: color,
       recommendations: recommendations,
     );

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
-import '../services/history_service.dart'; // IMPORT BARU
+import '../services/history_service.dart';
 import 'input_data_screen.dart';
 import 'history_screen.dart';
+import 'stats_screen.dart';
+import 'help_center_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,93 +17,175 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'SIPABERSIH',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 25),
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // 1. Hero Header (Warna Biru Deep Navy)
+          _buildHeroBackground(),
 
-            // --- PERBAIKAN DI SINI: Gunakan FutureBuilder ---
-            FutureBuilder<HistoryItem?>(
-              future: HistoryService.getLastData(), // Memanggil database
-              builder: (context, snapshot) {
-                // 1. Tampilkan Loading saat database sedang bekerja
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          SafeArea(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // 2. AppBar Custom Transparan
+                _buildSliverAppBar(),
 
-                // 2. Ambil data dari hasil database (snapshot)
-                final lastItem = snapshot.data;
-                final Color statusColor =
-                    lastItem?.result.color ?? AppColors.primaryBlue;
-
-                // 3. Tampilkan Card Status dengan data yang sudah ada
-                return _buildStatusCard(lastItem, statusColor);
-              },
+                // 3. Konten Utama
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildMainStatusCard(), // Kartu Status Premium
+                        const SizedBox(height: 35),
+                        Text("Layanan Utama", style: AppStyles.h2),
+                        const SizedBox(height: 16),
+                        _buildMenuGrid(), // Grid Menu dengan Soft Shadow
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 30),
-            const Text(
-              "Menu Utama",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-            _buildMenuGrid(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatusCard(HistoryItem? lastItem, Color color) {
+  Widget _buildHeroBackground() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(15),
+      height: 300,
+      decoration: const BoxDecoration(
+        color: AppColors.primaryDark, // Sekarang Biru Tua, bukan Hitam
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(50)),
+        gradient: AppColors.primaryGradient, // Memberikan efek kedalaman air
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 80,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      pinned: true,
+      flexibleSpace: FlexibleSpaceBar(
+        centerTitle: false,
+        titlePadding: const EdgeInsets.only(left: 24, bottom: 16),
+        title: Text(
+          "SIPABERSIH",
+          style: AppStyles.h1.copyWith(
+            color: Colors.white,
+            fontSize: 22,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 24),
+          child: CircleAvatar(
+            backgroundColor: Colors.white.withOpacity(0.15),
+            child: const Icon(Icons.water_drop_outlined, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainStatusCard() {
+    return FutureBuilder<HistoryItem?>(
+      future: HistoryService.getLastData(),
+      builder: (context, snapshot) {
+        final lastData = snapshot.data;
+        // Gunakan accentBlue jika belum ada data
+        final color = lastData?.result.color ?? AppColors.accentBlue;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: AppStyles.radiusL,
+            boxShadow: AppStyles.softShadow,
+          ),
+          child: Column(
             children: [
-              const Text(
-                "Status Air Terakhir",
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.analytics_outlined,
+                      color: color,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Kualitas Air Terakhir",
+                    style: AppStyles.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 25),
               Text(
-                lastItem?.result.status ?? "BELUM ADA DATA",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                lastData?.result.status ?? "TIDAK ADA DATA",
+                style: AppStyles.h1.copyWith(
+                  fontSize: 32,
+                  color: color,
+                  letterSpacing: -0.5,
                 ),
               ),
+              const SizedBox(height: 20),
+              if (lastData != null) _buildQuickStats(lastData),
+              if (lastData == null)
+                Text(
+                  "Input data pertama untuk melihat hasil",
+                  style: AppStyles.caption,
+                ),
             ],
           ),
-          if (lastItem != null)
-            CircleAvatar(
-              backgroundColor: Colors.white24,
-              child: Text(
-                "${lastItem.result.score}",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickStats(HistoryItem data) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: [
+        _miniPill("pH ${data.measure.ph}"),
+        _miniPill("${data.measure.tds.toInt()} ppm"),
+        _miniPill("${data.measure.turbidity.toInt()} NTU"),
+      ],
+    );
+  }
+
+  Widget _miniPill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.lightBlue,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: AppStyles.caption.copyWith(
+          color: AppColors.primaryDark,
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
       ),
     );
   }
@@ -111,26 +195,38 @@ class _HomeScreenState extends State<HomeScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      crossAxisSpacing: 15,
-      mainAxisSpacing: 15,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
       children: [
-        _buildMenuCard(
+        _menuCard(
           "Input Data",
-          Icons.add_chart,
-          Colors.orange,
+          Icons.add_chart_rounded,
+          AppColors.accentBlue,
           const InputDataScreen(),
         ),
-        _buildMenuCard(
+        _menuCard(
           "Riwayat",
-          Icons.history,
-          Colors.teal,
+          Icons.history_edu_rounded,
+          AppColors.success,
           const HistoryScreen(),
+        ),
+        _menuCard(
+          "Statistik Air",
+          Icons.auto_graph_rounded,
+          Colors.indigo,
+          const StatsScreen(),
+        ),
+        _menuCard(
+          "Pusat Bantuan",
+          Icons.support_agent_rounded,
+          AppColors.danger,
+          const HelpCenterScreen(),
         ),
       ],
     );
   }
 
-  Widget _buildMenuCard(
+  Widget _menuCard(
     String title,
     IconData icon,
     Color color,
@@ -138,49 +234,35 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return InkWell(
       onTap: () async {
-        // MENUNGGU USER KEMBALI DARI HALAMAN LAIN
         await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => destination),
         );
-        // REFRESH TAMPILAN HOME
-        setState(() {});
+        setState(() {}); // Segarkan UI saat kembali
       },
+      borderRadius: AppStyles.radiusM,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: AppStyles.radiusM,
+          boxShadow: AppStyles.softShadow,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: color),
-            const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 30),
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: AppStyles.h2.copyWith(fontSize: 14)),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Selamat Datang, Relawan",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryBlue,
-          ),
-        ),
-        Text(
-          "Monitor kualitas air di lokasi bencana hari ini.",
-          style: TextStyle(fontSize: 14, color: AppColors.textLight),
-        ),
-      ],
     );
   }
 }

@@ -1,7 +1,7 @@
 import '../models/water_measure.dart';
 import '../models/analysis_result.dart';
 import 'analysis_service.dart';
-import 'database_helper.dart'; // Import DatabaseHelper yang baru kita buat
+import 'database_helper.dart';
 
 class HistoryItem {
   final WaterMeasure measure;
@@ -38,5 +38,9 @@ class HistoryService {
   static Future<HistoryItem?> getLastData() async {
     final history = await getHistory();
     return history.isNotEmpty ? history.first : null;
+  }
+
+  static Future<void> deleteHistory(int id) async {
+    await DatabaseHelper.instance.delete(id);
   }
 }

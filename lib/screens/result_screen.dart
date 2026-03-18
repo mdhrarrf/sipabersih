@@ -12,50 +12,65 @@ class ResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Hasil Analisis"),
-        // Menghilangkan tombol back otomatis jika ingin paksa user pakai tombol di bawah
-        automaticallyImplyLeading: true,
+        title: Text(
+          "Hasil Analisis",
+          style: AppStyles.h2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primaryDark,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildScoreHeader(),
-            const SizedBox(height: 25),
-            const Text(
-              "Detail Parameter:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            _buildDetailGrid(),
-            const SizedBox(height: 25),
-            const Text(
-              "Rekomendasi Tindakan:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            _buildRecommendationList(),
-            const SizedBox(height: 30),
+            // 1. Kartu Skor Utama (Mewah & Informatif)
+            _buildScoreCard(),
 
-            // Tombol Kembali
+            const SizedBox(height: 32),
+
+            // 2. Grid Detail Parameter
+            Text("Detail Parameter", style: AppStyles.h2),
+            const SizedBox(height: 16),
+            _buildDetailGrid(),
+
+            const SizedBox(height: 32),
+
+            // 3. Rekomendasi Tindakan
+            Text("Rekomendasi Tindakan", style: AppStyles.h2),
+            const SizedBox(height: 16),
+            _buildRecommendationList(),
+
+            const SizedBox(height: 40),
+
+            // 4. Tombol Kembali (Aksi Utama)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () =>
                     Navigator.popUntil(context, (route) => route.isFirst),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
+                  backgroundColor: AppColors.primaryDark,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: AppStyles.radiusM,
                   ),
+                  elevation: 8,
+                  shadowColor: AppColors.primaryDark.withOpacity(0.3),
                 ),
-                child: const Text(
+                child: Text(
                   "KEMBALI KE BERANDA",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: AppStyles.h2.copyWith(
+                    color: Colors.white,
+                    fontSize: 14,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
             ),
@@ -66,52 +81,79 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScoreHeader() {
+  Widget _buildScoreCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       decoration: BoxDecoration(
-        color: result.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: result.color, width: 2),
+        color: Colors.white,
+        borderRadius: AppStyles.radiusL,
+        boxShadow: AppStyles.softShadow,
       ),
       child: Column(
         children: [
-          Text(
-            result.status,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: result.color,
+          // Badge Status (Warna Dinamis)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            decoration: BoxDecoration(
+              color: result.color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: result.color.withOpacity(0.2)),
+            ),
+            child: Text(
+              result.status,
+              style: AppStyles.h2.copyWith(
+                color: result.color,
+                fontSize: 13,
+                letterSpacing: 2,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 35),
+
+          // Lingkaran Skor Progress Modern
           Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
-                height: 120,
-                width: 120,
+                height: 160,
+                width: 160,
                 child: CircularProgressIndicator(
                   value: result.score / 100,
-                  strokeWidth: 12,
-                  backgroundColor: Colors.grey.shade200,
+                  strokeWidth: 14,
+                  backgroundColor: AppColors.lightBlue,
                   color: result.color,
+                  strokeCap: StrokeCap.round, // Efek bulat pada ujung progress
                 ),
               ),
-              Text(
-                "${result.score}",
-                style: const TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                ),
+              Column(
+                children: [
+                  Text(
+                    "${result.score}",
+                    style: AppStyles.h1.copyWith(
+                      fontSize: 58,
+                      color: AppColors.textDark,
+                      letterSpacing: -2,
+                    ),
+                  ),
+                  Text(
+                    "SKOR KUALITAS",
+                    style: AppStyles.caption.copyWith(
+                      letterSpacing: 2,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 15),
-          const Text(
-            "Skor Kualitas Air",
-            style: TextStyle(color: AppColors.textLight),
+          const SizedBox(height: 35),
+          Text(
+            "Berdasarkan standar perhitungan Water Quality Index (WQI) nasional.",
+            textAlign: TextAlign.center,
+            style: AppStyles.body.copyWith(fontSize: 12),
           ),
         ],
       ),
@@ -123,41 +165,76 @@ class ResultScreen extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      childAspectRatio: 2.5,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
+      childAspectRatio: 2.2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
       children: [
-        _buildInfoTile("pH", measure.ph.toStringAsFixed(1), "pH"),
-        _buildInfoTile("TDS", "${measure.tds.toInt()}", "ppm"),
+        _buildInfoTile(
+          "pH Air",
+          measure.ph.toStringAsFixed(1),
+          "pH",
+          Icons.science_rounded,
+        ),
+        _buildInfoTile(
+          "TDS",
+          "${measure.tds.toInt()}",
+          "ppm",
+          Icons.opacity_rounded,
+        ),
         _buildInfoTile(
           "Turbidity",
           measure.turbidity.toStringAsFixed(1),
           "NTU",
+          Icons.waves_rounded,
         ),
-        _buildInfoTile("Suhu", "${measure.temperature.toInt()}", "°C"),
+        _buildInfoTile(
+          "Suhu Air",
+          "${measure.temperature.toInt()}",
+          "°C",
+          Icons.thermostat_rounded,
+        ),
       ],
     );
   }
 
-  Widget _buildInfoTile(String label, String value, String unit) {
+  Widget _buildInfoTile(
+    String label,
+    String value,
+    String unit,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: AppStyles.radiusM,
+        boxShadow: AppStyles.softShadow,
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.lightBlue,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: AppColors.primaryDark),
           ),
-          Text(
-            "$value $unit",
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppStyles.caption.copyWith(fontSize: 10)),
+                FittedBox(
+                  child: Text(
+                    "$value $unit",
+                    style: AppStyles.h2.copyWith(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -168,17 +245,38 @@ class ResultScreen extends StatelessWidget {
     return Column(
       children: result.recommendations
           .map(
-            (rec) => Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              elevation: 0,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: BorderSide(color: Colors.grey.shade200),
+            (rec) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: AppStyles.radiusM,
+                border: Border.all(
+                  color: result.color.withOpacity(0.15),
+                  width: 1.5,
+                ),
               ),
-              child: ListTile(
-                leading: Icon(Icons.check_circle_outline, color: result.color),
-                title: Text(rec, style: const TextStyle(fontSize: 14)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: result.color,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      rec,
+                      style: AppStyles.body.copyWith(
+                        color: AppColors.textDark,
+                        fontSize: 13,
+                        height: 1.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           )
