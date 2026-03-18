@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/water_measure.dart';
 import '../models/analysis_result.dart';
@@ -74,21 +75,18 @@ class HistoryService {
         .from('water_measures')
         .stream(primaryKey: ['id'])
         .order('created_at')
+        .handleError((error) {
+          // Tangkap error secara diam-diam agar tidak spamming
+          debugPrint(
+            "INFO: Aliran data tertunda/putus. Menghubungkan kembali...",
+          );
+        })
         .map((data) {
           return data
               .map((item) {
-                final measure = WaterMeasure(
-                  id: item['id'],
-                  ph: (item['ph'] as num).toDouble(),
-                  tds: (item['tds'] as num).toDouble(),
-                  turbidity: (item['turbidity'] as num).toDouble(),
-                  temperature: (item['temperature'] as num).toDouble(),
-                  latitude: (item['latitude'] as num)
-                      .toDouble(), // AMBIL DARI CLOUD
-                  longitude: (item['longitude'] as num)
-                      .toDouble(), // AMBIL DARI CLOUD
-                  timestamp: DateTime.parse(item['created_at']),
-                );
+                final measure = WaterMeasure.fromMap(
+                  item,
+                ); // Gunakan fromMap agar rapi
                 final analysisResult = AnalysisService.calculateQuality(
                   measure,
                 );

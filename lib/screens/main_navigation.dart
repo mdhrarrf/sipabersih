@@ -13,46 +13,75 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
+  // Daftar halaman utama
   final List<Widget> _pages = [const HomeScreen(), const ProfileScreen()];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // IndexedStack menjaga agar 'state' halaman tidak reset saat pindah tab
       body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          indicatorColor: AppColors.accentBlue.withOpacity(0.1),
-          labelTextStyle: MaterialStateProperty.all(
-            AppStyles.caption.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
-            ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: Colors.grey.shade100,
+              width: 1,
+            ), // Garis pembatas tipis elegan
           ),
         ),
-        child: NavigationBar(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: (index) =>
-              setState(() => _currentIndex = index),
-          backgroundColor: Colors.white,
-          elevation: 10,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(
-                Icons.home_rounded,
-                color: AppColors.accentBlue,
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            backgroundColor: Colors.white,
+            indicatorColor: AppColors.accentBlue.withOpacity(
+              0.1,
+            ), // Pill transparan biru
+            iconTheme: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return const IconThemeData(
+                  color: AppColors.accentBlue,
+                  size: 24,
+                );
+              }
+              return IconThemeData(color: Colors.grey.shade400, size: 24);
+            }),
+            labelTextStyle: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return AppStyles.caption.copyWith(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                  color: AppColors.accentBlue,
+                  letterSpacing: 0.5,
+                );
+              }
+              return AppStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                color: Colors.grey.shade400,
+                letterSpacing: 0.5,
+              );
+            }),
+          ),
+          child: NavigationBar(
+            height: 65, // Tinggi yang pas untuk jempol
+            elevation: 0, // Hilangkan bayangan berat agar terlihat minimalis
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) =>
+                setState(() => _currentIndex = index),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: 'BERANDA',
               ),
-              label: 'Beranda',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(
-                Icons.person_rounded,
-                color: AppColors.accentBlue,
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: 'PROFIL',
               ),
-              label: 'Profil',
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

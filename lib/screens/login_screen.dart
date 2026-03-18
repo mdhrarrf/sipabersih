@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Import Provider
+import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../utils/constants.dart';
+import '../widgets/app_footer.dart'; // IMPORT FOOTER
 import 'register_screen.dart';
 import 'main_navigation.dart';
 
@@ -18,9 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureText = true;
 
   void _handleLogin() async {
-    final authVM = context.read<AuthViewModel>(); // Akses ViewModel
+    final authVM = context.read<AuthViewModel>();
 
-    // Panggil fungsi login di ViewModel
     final success = await authVM.login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
@@ -32,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (context) => const MainNavigation()),
       );
     } else if (authVM.errorMessage != null && mounted) {
-      // Tampilkan error dari ViewModel
       _showSnackBar(authVM.errorMessage!, AppColors.danger);
     }
   }
@@ -40,29 +39,36 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showSnackBar(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(msg, style: const TextStyle(fontSize: 13)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Watch status loading dari ViewModel
     final authVM = context.watch<AuthViewModel>();
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 60),
+
+              // 1. Branding Minimalis
               _buildLogo(),
+
               const SizedBox(height: 40),
+
+              // 2. Teks Pembuka
               Text(
                 "Masuk Petugas",
                 style: AppStyles.h1.copyWith(
@@ -74,29 +80,32 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               Text(
                 "Sistem Informasi Pengelolaan Air Bersih",
-                style: AppStyles.body,
+                style: AppStyles.body.copyWith(color: AppColors.textLight),
               ),
+
               const SizedBox(height: 48),
 
+              // 3. Form Input
               _buildInputLabel("Alamat Email Instansi"),
               _buildTextField(
-                _emailController,
-                "petugas@sipabersih.go.id",
-                Icons.alternate_email_rounded,
+                controller: _emailController,
+                hint: "petugas@sipabersih.id",
+                icon: Icons.alternate_email_rounded,
               ),
 
               const SizedBox(height: 24),
+
               _buildInputLabel("Kata Sandi"),
               _buildTextField(
-                _passwordController,
-                "••••••••",
-                Icons.lock_outline_rounded,
+                controller: _passwordController,
+                hint: "••••••••",
+                icon: Icons.lock_outline_rounded,
                 isPassword: true,
               ),
 
               const SizedBox(height: 32),
 
-              // UI Button merespon status loading dari ViewModel
+              // 4. Tombol Aksi Utama
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -104,6 +113,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: authVM.isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryDark,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -120,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       : const Text(
                           "Masuk ke Dashboard",
                           style: TextStyle(
-                            color: Colors.white,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -128,7 +139,15 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 32),
-              _buildRegisterFooter(),
+
+              // 5. Link Registrasi
+              _buildRegisterLink(),
+
+              const SizedBox(height: 60),
+
+              // 6. FOOTER IDENTITAS (Reuseable Widget)
+              const AppFooter(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -136,80 +155,115 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Widget _buildLogo, _buildInputLabel, _buildTextField, _buildRegisterFooter tetap sama...
-  Widget _buildLogo() => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: AppColors.primaryDark,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: const Icon(Icons.water_drop_rounded, color: Colors.white, size: 32),
-  );
-  Widget _buildInputLabel(String label) => Padding(
-    padding: const EdgeInsets.only(left: 2, bottom: 10),
-    child: Text(
-      label,
-      style: AppStyles.caption.copyWith(
+  Widget _buildLogo() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
         color: AppColors.primaryDark,
-        fontWeight: FontWeight.w700,
+        borderRadius: BorderRadius.circular(14),
       ),
-    ),
-  );
-  Widget _buildTextField(
-    TextEditingController controller,
-    String hint,
-    IconData icon, {
+      child: const Icon(
+        Icons.water_drop_rounded,
+        color: Colors.white,
+        size: 32,
+      ),
+    );
+  }
+
+  Widget _buildInputLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 10),
+      child: Text(
+        label,
+        style: AppStyles.caption.copyWith(
+          color: AppColors.primaryDark,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
     bool isPassword = false,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword ? _obscureText : false,
+      style: AppStyles.body.copyWith(
+        color: AppColors.textDark,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: Icon(icon, size: 20),
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(
+          icon,
+          color: AppColors.primaryDark.withOpacity(0.5),
+          size: 20,
+        ),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
                   _obscureText
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
+                  color: Colors.grey,
                   size: 18,
                 ),
                 onPressed: () => setState(() => _obscureText = !_obscureText),
               )
             : null,
         filled: true,
-        fillColor: AppColors.background.withOpacity(0.5),
-        border: OutlineInputBorder(
+        fillColor: AppColors.background.withOpacity(0.4),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 18,
+          horizontal: 16,
+        ),
+        enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: AppColors.primaryDark,
+            width: 1.5,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildRegisterFooter() => Center(
-    child: GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-      ),
-      child: RichText(
-        text: TextSpan(
-          text: "Belum memiliki akun? ",
-          style: AppStyles.body,
-          children: [
-            TextSpan(
-              text: "Daftar Petugas",
-              style: TextStyle(
-                color: AppColors.primaryDark,
-                fontWeight: FontWeight.w800,
-                decoration: TextDecoration.underline,
-              ),
+  Widget _buildRegisterLink() {
+    return Center(
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const RegisterScreen()),
+        ),
+        child: RichText(
+          text: TextSpan(
+            text: "Belum memiliki akses? ",
+            style: AppStyles.body.copyWith(
+              color: AppColors.textLight,
+              fontSize: 13,
             ),
-          ],
+            children: [
+              TextSpan(
+                text: "Daftar Petugas",
+                style: TextStyle(
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

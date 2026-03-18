@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/water_measure.dart';
 import '../models/analysis_result.dart';
 import '../utils/constants.dart';
+import '../widgets/app_footer.dart'; // IMPORT FOOTER
 
 class ResultScreen extends StatelessWidget {
   final WaterMeasure measure;
@@ -16,7 +17,7 @@ class ResultScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           "Hasil Analisis",
-          style: AppStyles.h2.copyWith(color: Colors.white),
+          style: AppStyles.h2.copyWith(color: Colors.white, fontSize: 16),
         ),
         backgroundColor: AppColors.primaryDark,
         elevation: 0,
@@ -25,55 +26,70 @@ class ResultScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Kartu Skor Utama (Mewah & Informatif)
-            _buildScoreCard(),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Kartu Skor Utama
+                  _buildScoreCard(),
 
-            const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-            // 2. Grid Detail Parameter
-            Text("Detail Parameter", style: AppStyles.h2),
-            const SizedBox(height: 16),
-            _buildDetailGrid(),
-
-            const SizedBox(height: 32),
-
-            // 3. Rekomendasi Tindakan
-            Text("Rekomendasi Tindakan", style: AppStyles.h2),
-            const SizedBox(height: 16),
-            _buildRecommendationList(),
-
-            const SizedBox(height: 40),
-
-            // 4. Tombol Kembali (Aksi Utama)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () =>
-                    Navigator.popUntil(context, (route) => route.isFirst),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryDark,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppStyles.radiusM,
+                  // 2. Judul Detail
+                  Text(
+                    "Detail Parameter",
+                    style: AppStyles.h2.copyWith(fontSize: 16),
                   ),
-                  elevation: 8,
-                  shadowColor: AppColors.primaryDark.withOpacity(0.3),
-                ),
-                child: Text(
-                  "KEMBALI KE BERANDA",
-                  style: AppStyles.h2.copyWith(
-                    color: Colors.white,
-                    fontSize: 14,
-                    letterSpacing: 1,
+                  const SizedBox(height: 16),
+                  _buildDetailGrid(),
+
+                  const SizedBox(height: 32),
+
+                  // 3. Judul Rekomendasi
+                  Text(
+                    "Rekomendasi Tindakan",
+                    style: AppStyles.h2.copyWith(fontSize: 16),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  _buildRecommendationList(),
+
+                  const SizedBox(height: 40),
+
+                  // 4. Tombol Kembali Utama
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          Navigator.popUntil(context, (route) => route.isFirst),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryDark,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppStyles.radiusM,
+                        ),
+                        elevation: 8,
+                        shadowColor: AppColors.primaryDark.withOpacity(0.3),
+                      ),
+                      child: Text(
+                        "KEMBALI KE BERANDA",
+                        style: AppStyles.h2.copyWith(
+                          color: Colors.white,
+                          fontSize: 14,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+
+            // 5. FOOTER IDENTITAS (Reuseable Widget)
+            const AppFooter(),
             const SizedBox(height: 20),
           ],
         ),
@@ -92,7 +108,7 @@ class ResultScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Badge Status (Warna Dinamis)
+          // Badge Status
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: BoxDecoration(
@@ -104,7 +120,7 @@ class ResultScreen extends StatelessWidget {
               result.status,
               style: AppStyles.h2.copyWith(
                 color: result.color,
-                fontSize: 13,
+                fontSize: 12,
                 letterSpacing: 2,
                 fontWeight: FontWeight.w800,
               ),
@@ -112,7 +128,7 @@ class ResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 35),
 
-          // Lingkaran Skor Progress Modern
+          // Lingkaran Skor Progres
           Stack(
             alignment: Alignment.center,
             children: [
@@ -124,7 +140,7 @@ class ResultScreen extends StatelessWidget {
                   strokeWidth: 14,
                   backgroundColor: AppColors.lightBlue,
                   color: result.color,
-                  strokeCap: StrokeCap.round, // Efek bulat pada ujung progress
+                  strokeCap: StrokeCap.round,
                 ),
               ),
               Column(
@@ -138,7 +154,7 @@ class ResultScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    "SKOR KUALITAS",
+                    "SKOR WQI",
                     style: AppStyles.caption.copyWith(
                       letterSpacing: 2,
                       fontSize: 9,
@@ -149,9 +165,9 @@ class ResultScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 35),
+          const SizedBox(height: 30),
           Text(
-            "Berdasarkan standar perhitungan Water Quality Index (WQI) nasional.",
+            "Indeks Kualitas Air Nasional",
             textAlign: TextAlign.center,
             style: AppStyles.body.copyWith(fontSize: 12),
           ),

@@ -4,13 +4,13 @@ import '../services/auth_service.dart';
 class AuthViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  // State
+  // --- STATE ---
   bool _isLoading = false;
   String? _errorMessage;
   Map<String, dynamic>? _userProfile;
   int _totalMeasures = 0;
 
-  // Getter
+  // --- GETTERS ---
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   Map<String, dynamic>? get userProfile => _userProfile;
@@ -22,52 +22,102 @@ class AuthViewModel extends ChangeNotifier {
     _errorMessage = null;
     try {
       await _authService.login(email, password);
+      await fetchFullProfile(); // Ambil profil setelah login sukses
       _setLoading(false);
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = "Gagal Masuk: Periksa kembali email dan kata sandi Anda.";
       _setLoading(false);
       return false;
     }
   }
 
-  // 2. Logika Ambil Profil Lengkap (Data Nyata)
-  Future<void> fetchFullProfile() async {
+  // 2. Logika Registrasi Petugas Baru
+  Future<bool> register({
+    required String email,
+    required String password,
+    required String fullName,
+    required String petugasId,
+  }) async {
     _setLoading(true);
+    _errorMessage = null;
     try {
-      // Mengambil profile dan total input secara paralel (lebih cepat)
+      await _authService.register(
+        email: email,
+        password: password,
+        fullName: fullName,
+        petugasId: petugasId,
+      );
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      if (e.toString().contains("429")) {
+        _errorMessage =
+            "Terlalu banyak permintaan. Silakan tunggu beberapa saat.";
+      } else if (e.toString().contains("already registered")) {
+        _errorMessage = "Email ini sudah terdaftar sebagai petugas.";
+      } else {
+        _errorMessage = "Terjadi kesalahan sistem saat mendaftar.";
+      }
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 3. Logika Ambil Profil & Statistik (Data Nyata)
+  Future<void> fetchFullProfile() async {
+    _errorMessage = null;
+    // Jangan set loading true di sini jika sedang dipanggil dari login/update
+    // agar tidak terjadi double spinner
+    try {
       final results = await Future.wait([
         _authService.getProfile(),
         _authService.getTotalMeasures(),
       ]);
       _userProfile = results[0] as Map<String, dynamic>?;
       _totalMeasures = results[1] as int;
+      notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = "Gagal memuat data profil.";
+      notifyListeners();
     }
-    _setLoading(false);
   }
 
-  // 3. Logika Update Nama
+  // 4. Logika Update Nama Profil
   Future<void> updateName(String newName) async {
     _setLoading(true);
     try {
       await _authService.updateProfileName(newName);
-      await fetchFullProfile(); // Refresh data setelah update
+      await fetchFullProfile(); // Refresh data otomatis setelah update
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = "Gagal memperbarui nama.";
     }
     _setLoading(false);
   }
 
-  // 4. Logika Logout
+  // 5. Logika Reset Kata Sandi
+  Future<bool> resetPassword(String email) async {
+    _setLoading(true);
+    try {
+      await _authService.resetPassword(email);
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _errorMessage = "Gagal mengirim permintaan reset password.";
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 6. Logika Logout
   Future<void> logout() async {
     await _authService.signOut();
     _userProfile = null;
+    _totalMeasures = 0;
     notifyListeners();
   }
 
-  // Helper untuk set loading dan beritahu UI
+  // Helper internal untuk mengelola state loading
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

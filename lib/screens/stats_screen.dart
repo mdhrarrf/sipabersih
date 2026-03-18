@@ -1,33 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sipabersih/viewmodels/water_viewmodel.dart';
+import '../viewmodels/water_viewmodel.dart';
 import '../services/history_service.dart';
 import '../widgets/water_chart.dart';
 import '../utils/constants.dart';
 import '../models/water_measure.dart';
+import '../widgets/app_footer.dart'; // IMPORT FOOTER
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Akses ViewModel
+    final waterVM = context.read<WaterViewModel>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // 1. Header Dinamis
+          // 1. Header Dinamis Ramping
           SliverAppBar(
-            expandedHeight: 120,
+            expandedHeight: 100,
             pinned: true,
             backgroundColor: AppColors.primaryDark,
             elevation: 0,
             centerTitle: true,
             iconTheme: const IconThemeData(color: Colors.white),
             flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
               title: Text(
                 "Tren Kualitas Air",
-                style: AppStyles.h2.copyWith(color: Colors.white, fontSize: 18),
+                style: AppStyles.h2.copyWith(
+                  color: Colors.white,
+                  fontSize: 16,
+                  letterSpacing: 1,
+                ),
               ),
               background: Container(
                 decoration: const BoxDecoration(
@@ -40,7 +49,7 @@ class StatsScreen extends StatelessWidget {
           // 2. Konten Statistik Real-time
           SliverToBoxAdapter(
             child: StreamBuilder<List<HistoryItem>>(
-              stream: context.read<WaterViewModel>().waterStream,
+              stream: waterVM.waterStream, // Ambil dari ViewModel (MVVM)
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
@@ -55,41 +64,58 @@ class StatsScreen extends StatelessWidget {
 
                 final history = snapshot.data ?? [];
 
-                // Cek jika data kurang dari 2 (Grafik butuh minimal 2 titik)
-                if (history.length < 2) return _buildEmptyState();
+                // Jika data kurang dari 2, tampilkan Empty State + Footer
+                if (history.length < 2) {
+                  return Column(
+                    children: [
+                      const SizedBox(height: 80),
+                      _buildEmptyState(),
+                      const SizedBox(height: 80),
+                      const AppFooter(),
+                    ],
+                  );
+                }
 
-                // Ambil daftar data mentah untuk grafik
                 final measures = history.map((e) => e.measure).toList();
 
-                return Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader("Visualisasi Real-time TDS (ppm)"),
-                      const SizedBox(height: 16),
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(
+                            "Visualisasi Real-time TDS (ppm)",
+                          ),
+                          const SizedBox(height: 16),
 
-                      // Kartu Grafik Premium
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: AppStyles.radiusL,
-                          boxShadow: AppStyles.softShadow,
-                        ),
-                        child: WaterChart(data: measures),
+                          // Kartu Grafik Premium
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: AppStyles.radiusL,
+                              boxShadow: AppStyles.softShadow,
+                            ),
+                            child: WaterChart(data: measures),
+                          ),
+
+                          const SizedBox(height: 32),
+                          _buildSectionHeader("Ringkasan Analitik"),
+                          const SizedBox(height: 16),
+                          _buildSummaryGrid(measures),
+
+                          const SizedBox(height: 32),
+                          _buildInsightCard(),
+                        ],
                       ),
+                    ),
 
-                      const SizedBox(height: 32),
-                      _buildSectionHeader("Ringkasan Analitik"),
-                      const SizedBox(height: 16),
-                      _buildSummaryGrid(measures),
-
-                      const SizedBox(height: 32),
-                      _buildInsightCard(),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
+                    // 3. FOOTER IDENTITAS (SINKRON DENGAN HALAMAN LAIN)
+                    const AppFooter(),
+                    const SizedBox(height: 20),
+                  ],
                 );
               },
             ),
@@ -99,31 +125,34 @@ class StatsScreen extends StatelessWidget {
     );
   }
 
+  // --- UI COMPONENTS ---
+
   Widget _buildEmptyState() {
-    return Container(
-      padding: const EdgeInsets.only(top: 100),
-      alignment: Alignment.center,
+    return Center(
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.lightBlue,
+              color: AppColors.lightBlue.withOpacity(0.5),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.auto_graph_rounded,
               size: 80,
-              color: AppColors.accentBlue,
+              color: AppColors.accentBlue.withOpacity(0.5),
             ),
           ),
           const SizedBox(height: 20),
           Text("Data Minim", style: AppStyles.h2),
           const SizedBox(height: 8),
-          const Text(
-            "Dibutuhkan minimal 2 data pengukuran untuk menampilkan tren statistik.",
-            style: TextStyle(color: AppColors.textLight),
-            textAlign: TextAlign.center,
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 50),
+            child: Text(
+              "Dibutuhkan minimal 2 data pengukuran untuk menampilkan tren statistik.",
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -133,12 +162,11 @@ class StatsScreen extends StatelessWidget {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: AppStyles.h2.copyWith(color: AppColors.primaryDark, fontSize: 16),
+      style: AppStyles.h2.copyWith(color: AppColors.primaryDark, fontSize: 15),
     );
   }
 
   Widget _buildSummaryGrid(List<WaterMeasure> data) {
-    // Logika Hitung Rata-rata Cloud Data
     double sumTds = 0;
     double sumPh = 0;
     for (var m in data) {
@@ -247,7 +275,7 @@ class StatsScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 "Analisis Cerdas",
-                style: AppStyles.h2.copyWith(color: Colors.white),
+                style: AppStyles.h2.copyWith(color: Colors.white, fontSize: 15),
               ),
             ],
           ),
@@ -256,7 +284,7 @@ class StatsScreen extends StatelessWidget {
             "Sistem memantau tren TDS secara real-time. Penurunan garis grafik menunjukkan keberhasilan proses filtrasi di lokasi bencana.",
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
-              fontSize: 13,
+              fontSize: 12,
               height: 1.6,
             ),
           ),

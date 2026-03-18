@@ -1,5 +1,3 @@
-// lib/screens/full_map_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,6 +6,7 @@ import '../viewmodels/map_viewmodel.dart';
 import '../viewmodels/water_viewmodel.dart';
 import '../services/history_service.dart';
 import '../utils/constants.dart';
+import '../widgets/app_footer.dart'; // Import Footer
 
 class FullMapScreen extends StatefulWidget {
   const FullMapScreen({super.key});
@@ -17,7 +16,6 @@ class FullMapScreen extends StatefulWidget {
 }
 
 class _FullMapScreenState extends State<FullMapScreen> {
-  // ALAT KONTROL PETA (PENTING)
   final MapController _mapController = MapController();
 
   @override
@@ -30,153 +28,106 @@ class _FullMapScreenState extends State<FullMapScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          "Peta Sebaran Air",
-          style: AppStyles.h2.copyWith(color: Colors.white, fontSize: 16),
+          "Peta Monitoring Nasional",
+          style: AppStyles.h2.copyWith(
+            color: Colors.white,
+            fontSize: 16,
+            letterSpacing: 1,
+          ),
         ),
         backgroundColor: AppColors.primaryDark,
         elevation: 0,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder<List<HistoryItem>>(
-        stream: waterVM.waterStream,
-        builder: (context, snapshot) {
-          final historyData = snapshot.data ?? [];
+      body: Column(
+        children: [
+          // 1. AREA PETA (MENGGUNAKAN EXPANDED AGAR FOOTER BISA DI BAWAH)
+          Expanded(
+            child: StreamBuilder<List<HistoryItem>>(
+              stream: waterVM.waterStream,
+              builder: (context, snapshot) {
+                final historyData = snapshot.data ?? [];
 
-          if (snapshot.hasData) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              mapVM.generateMarkers(historyData);
-            });
-          }
+                if (snapshot.hasData) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    mapVM.generateMarkers(historyData);
+                  });
+                }
 
-          return Stack(
-            children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: const MapOptions(
-                  initialCenter: defaultCenter,
-                  initialZoom: 12,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                    subdomains: const ['a', 'b', 'c', 'd'],
-                    userAgentPackageName: 'id.sipabersih.pro',
-                  ),
-                  MarkerLayer(markers: mapVM.markers),
-                ],
-              ),
-              _buildInfoPanel(mapVM.markers.length),
+                return Stack(
+                  children: [
+                    // LAYER PETA DASAR
+                    FlutterMap(
+                      mapController: _mapController,
+                      options: const MapOptions(
+                        initialCenter: defaultCenter,
+                        initialZoom: 12,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          userAgentPackageName: 'id.sipabersih.pro.fullmap',
+                        ),
+                        MarkerLayer(markers: mapVM.markers),
+                      ],
+                    ),
 
-              // TAMBAHKAN LEGENDA PETA DI KIRI BAWAH
-              _buildLegend(),
+                    // OVERLAY: PANEL INFO ATAS
+                    _buildTopPanel(mapVM.markers.length),
 
-              _buildFloatingControl(historyData),
-            ],
-          );
-        },
+                    // OVERLAY: LEGENDA KIRI BAWAH
+                    _buildMapLegend(),
+
+                    // OVERLAY: TOMBOL ZOOM TERPISAH (KANAN TENGAH)
+                    _buildZoomControls(),
+
+                    // OVERLAY: TOMBOL LOKASI BENCANA (KANAN BAWAH)
+                    _buildMainAction(historyData),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // 2. FOOTER APLIKASI (KONSISTEN DENGAN PAGE LAIN)
+          const AppFooter(),
+        ],
       ),
     );
   }
 
-  Widget _buildLegend() {
+  // PANEL INFORMASI ATAS
+  Widget _buildTopPanel(int count) {
     return Positioned(
-      bottom: 30,
-      left: 20,
+      top: 15,
+      left: 15,
+      right: 15,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: AppStyles.softShadow,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _legendItem(AppColors.success, "Aman Diminum"),
-            const SizedBox(height: 6),
-            _legendItem(AppColors.warning, "Butuh Filtrasi"),
-            const SizedBox(height: 6),
-            _legendItem(AppColors.danger, "Tidak Layak"),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _legendItem(Color color, String text) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFloatingControl(List<HistoryItem> data) {
-    return Positioned(
-      bottom: 30,
-      right: 20,
-      child: FloatingActionButton.extended(
-        backgroundColor: AppColors.primaryDark,
-        icon: const Icon(Icons.gps_fixed, color: Colors.white, size: 20),
-        label: const Text(
-          "LOKASI BENCANA",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-        onPressed: () {
-          if (data.isNotEmpty) {
-            // TERBANG KE LOKASI TERBARU (Data Petugas Terakhir)
-            final latestPos = LatLng(
-              data.first.measure.latitude,
-              data.first.measure.longitude,
-            );
-            _mapController.move(
-              latestPos,
-              15.0,
-            ); // Pindah ke titik lokasi dengan zoom 15
-            _showSnackBar("Fokus ke titik pengukuran terbaru");
-          } else {
-            _showSnackBar("Belum ada data lokasi");
-          }
-        },
-      ),
-    );
-  }
-
-  // Panel Info Atas
-  Widget _buildInfoPanel(int totalMarkers) {
-    return Positioned(
-      top: 20,
-      left: 20,
-      right: 20,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.95),
           borderRadius: BorderRadius.circular(15),
           boxShadow: AppStyles.softShadow,
+          border: Border.all(color: AppColors.primaryDark.withOpacity(0.1)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.map_outlined, color: AppColors.accentBlue),
-            const SizedBox(width: 15),
+            const Icon(
+              Icons.sensors_rounded,
+              color: AppColors.accentBlue,
+              size: 18,
+            ),
+            const SizedBox(width: 12),
             Text(
-              "$totalMarkers Titik Terdeteksi",
-              style: AppStyles.h2.copyWith(fontSize: 14),
+              "Terdeteksi $count titik pemantauan aktif",
+              style: AppStyles.body.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+                color: AppColors.primaryDark,
+              ),
             ),
           ],
         ),
@@ -184,12 +135,139 @@ class _FullMapScreenState extends State<FullMapScreen> {
     );
   }
 
+  // LEGENDA PETA
+  Widget _buildMapLegend() {
+    return Positioned(
+      bottom: 20,
+      left: 15,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: AppStyles.radiusM,
+          boxShadow: AppStyles.softShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "LEGENDA",
+              style: AppStyles.caption.copyWith(
+                fontWeight: FontWeight.w900,
+                fontSize: 8,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _legendRow(AppColors.success, "Air Bersih"),
+            const SizedBox(height: 6),
+            _legendRow(AppColors.warning, "Perlu Filter"),
+            const SizedBox(height: 6),
+            _legendRow(AppColors.danger, "Tidak Layak"),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendRow(Color color, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: AppStyles.body.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // PERBAIKAN: TOMBOL ZOOM TERPISAH
+  Widget _buildZoomControls() {
+    return Positioned(
+      right: 15,
+      top: MediaQuery.of(context).size.height * 0.3,
+      child: Column(
+        children: [
+          FloatingActionButton.small(
+            heroTag: "zoom_in",
+            backgroundColor: Colors.white,
+            elevation: 4,
+            child: const Icon(Icons.add, color: AppColors.primaryDark),
+            onPressed: () => _mapController.move(
+              _mapController.camera.center,
+              _mapController.camera.zoom + 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton.small(
+            heroTag: "zoom_out",
+            backgroundColor: Colors.white,
+            elevation: 4,
+            child: const Icon(Icons.remove, color: AppColors.primaryDark),
+            onPressed: () => _mapController.move(
+              _mapController.camera.center,
+              _mapController.camera.zoom - 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // PERBAIKAN: TOMBOL AKSI UTAMA DI BAWAH
+  Widget _buildMainAction(List<HistoryItem> data) {
+    return Positioned(
+      bottom: 20,
+      right: 15,
+      child: FloatingActionButton.extended(
+        heroTag: "focus_disaster",
+        backgroundColor: AppColors.primaryDark,
+        elevation: 6,
+        icon: const Icon(
+          Icons.gps_fixed_rounded,
+          color: Colors.white,
+          size: 18,
+        ),
+        label: const Text(
+          "LOKASI BENCANA",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+        ),
+        onPressed: () {
+          if (data.isNotEmpty) {
+            final latest = LatLng(
+              data.first.measure.latitude,
+              data.first.measure.longitude,
+            );
+            _mapController.move(latest, 15.0);
+            _showSnackBar("Fokus ke koordinat terbaru");
+          }
+        },
+      ),
+    );
+  }
+
   void _showSnackBar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(msg, style: const TextStyle(fontSize: 12)),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 1),
+        margin: const EdgeInsets.fromLTRB(60, 0, 60, 100),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

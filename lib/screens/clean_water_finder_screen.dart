@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../viewmodels/water_viewmodel.dart';
 import '../services/history_service.dart';
 import '../utils/constants.dart';
+import '../widgets/app_footer.dart'; // IMPORT FOOTER
 
 class CleanWaterFinderScreen extends StatelessWidget {
   const CleanWaterFinderScreen({super.key});
@@ -35,11 +36,12 @@ class CleanWaterFinderScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           "Pusat Air Bersih",
-          style: AppStyles.h2.copyWith(color: Colors.white),
+          style: AppStyles.h2.copyWith(color: Colors.white, fontSize: 16),
         ),
         backgroundColor: AppColors.primaryDark,
         elevation: 0,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder<List<HistoryItem>>(
         stream: waterVM.cleanWaterStream, // Hanya ambil yang AMAN
@@ -51,13 +53,29 @@ class CleanWaterFinderScreen extends StatelessWidget {
           final cleanPoints = snapshot.data ?? [];
 
           if (cleanPoints.isEmpty) {
-            return _buildEmptyState();
+            // Jika kosong, tampilkan Empty State + Footer di bawahnya agar tetap rapi
+            return SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 100),
+                  _buildEmptyState(),
+                  const SizedBox(height: 100),
+                  const AppFooter(),
+                ],
+              ),
+            );
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(24),
-            itemCount: cleanPoints.length,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            // TAMBAHKAN +1 UNTUK MENAMPILKAN FOOTER DI AKHIR LIST
+            itemCount: cleanPoints.length + 1,
             itemBuilder: (context, index) {
+              // Jika index sudah mencapai akhir list, tampilkan footer
+              if (index == cleanPoints.length) {
+                return const AppFooter();
+              }
+
               final item = cleanPoints[index];
               return _buildLocationCard(item);
             },
@@ -72,19 +90,27 @@ class CleanWaterFinderScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.not_listed_location_rounded,
-            size: 80,
-            color: AppColors.accentBlue.withOpacity(0.2),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.accentBlue.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.not_listed_location_rounded,
+              size: 80,
+              color: AppColors.accentBlue.withOpacity(0.3),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text("Tidak Ada Lokasi Aman", style: AppStyles.h2),
+          const SizedBox(height: 8),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
+            padding: EdgeInsets.symmetric(horizontal: 50),
             child: Text(
               "Belum ditemukan sumber air dengan status AMAN di sekitar area ini.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
             ),
           ),
         ],
@@ -94,15 +120,17 @@ class CleanWaterFinderScreen extends StatelessWidget {
 
   Widget _buildLocationCard(HistoryItem item) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: AppStyles.radiusL,
         boxShadow: AppStyles.softShadow,
-        border: Border.all(color: AppColors.success.withOpacity(0.3), width: 1),
+        // Border hijau tipis menandakan status AMAN
+        border: Border.all(color: AppColors.success.withOpacity(0.2), width: 1),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -110,7 +138,7 @@ class CleanWaterFinderScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.local_drink_rounded,
@@ -124,15 +152,17 @@ class CleanWaterFinderScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Titik Air Layak Konsumsi",
-                      style: AppStyles.h2.copyWith(fontSize: 14),
+                      "Titik Air Terverifikasi",
+                      style: AppStyles.h2.copyWith(fontSize: 15),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      "Kualitas Sangat Baik (Skor: ${item.result.score})",
+                      "Kualitas Layak Konsumsi (WQI: ${item.result.score})",
                       style: const TextStyle(
                         color: AppColors.success,
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
@@ -141,43 +171,67 @@ class CleanWaterFinderScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("KOORDINAT LOKASI", style: AppStyles.caption),
-                  Text(
-                    "${item.measure.latitude.toStringAsFixed(4)}, ${item.measure.longitude.toStringAsFixed(4)}",
-                    style: AppStyles.body.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+          // Info Koordinat & Tombol Navigasi
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "KOORDINAT GPS",
+                      style: AppStyles.caption.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "${item.measure.latitude.toStringAsFixed(4)}, ${item.measure.longitude.toStringAsFixed(4)}",
+                      style: AppStyles.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
+                  ],
+                ),
+                // Tombol Navigasi Mewah
+                ElevatedButton.icon(
+                  onPressed: () => _openNavigation(
+                    item.measure.latitude,
+                    item.measure.longitude,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                ],
-              ),
-              // TOMBOL GO - NAVIGASI
-              ElevatedButton.icon(
-                onPressed: () => _openNavigation(
-                  item.measure.latitude,
-                  item.measure.longitude,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  icon: const Icon(Icons.near_me_rounded, size: 16),
+                  label: const Text(
+                    "NAVIGASI",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  elevation: 0,
                 ),
-                icon: const Icon(Icons.near_me_rounded, size: 18),
-                label: const Text(
-                  "NAVIGASI",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

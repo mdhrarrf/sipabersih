@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sipabersih/widgets/app_footer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 
@@ -126,7 +127,7 @@ class HelpCenterScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 40),
-                  _buildAppFooter(),
+                  const AppFooter(),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -319,27 +320,6 @@ class HelpCenterScreen extends StatelessWidget {
               answer,
               style: AppStyles.body.copyWith(fontSize: 13, height: 1.5),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppFooter() {
-    return const Center(
-      child: Column(
-        children: [
-          Text(
-            "SIPABERSIH PRO v3.5.0",
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
-          ),
-          Text(
-            "Badan Nasional Penanggulangan Bencana",
-            style: TextStyle(fontSize: 9, color: Colors.grey),
           ),
         ],
       ),

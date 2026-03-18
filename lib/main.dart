@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:sipabersih/viewmodels/map_viewmodel.dart';
+import 'package:sipabersih/viewmodels/settings_viewmodel.dart';
 import 'package:sipabersih/viewmodels/water_viewmodel.dart';
 import 'viewmodels/auth_viewmodel.dart'; // Import viewmodel
 import 'screens/login_screen.dart';
@@ -20,6 +21,9 @@ void main() async {
           create: (_) => WaterViewModel(),
         ), // Tambahkan ini
         ChangeNotifierProvider(create: (_) => MapViewModel()), // TAMBAHKAN INI
+        ChangeNotifierProvider(
+          create: (_) => SettingsViewModel(),
+        ), // TAMBAHKAN INI
       ],
       child: const SipabersihApp(),
     ),

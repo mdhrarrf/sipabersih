@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/history_service.dart';
 import '../services/report_service.dart';
-import '../services/auth_service.dart'; // Tambahkan import ini
+import '../services/auth_service.dart';
 import '../utils/constants.dart';
+import '../widgets/app_footer.dart'; // IMPORT FOOTER
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -14,7 +15,7 @@ class HistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           "Riwayat Analisis",
-          style: AppStyles.h2.copyWith(color: Colors.white),
+          style: AppStyles.h2.copyWith(color: Colors.white, fontSize: 16),
         ),
         backgroundColor: AppColors.primaryDark,
         elevation: 0,
@@ -25,12 +26,10 @@ class HistoryScreen extends StatelessWidget {
             tooltip: "Ekspor PDF",
             icon: const Icon(Icons.picture_as_pdf_rounded),
             onPressed: () async {
-              // 1. Tampilkan notifikasi loading
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Sedang mengambil data pusat...")),
               );
 
-              // 2. Ambil data Riwayat & Profil secara bersamaan
               final results = await Future.wait([
                 HistoryService.getHistory(),
                 AuthService().getProfile(),
@@ -40,7 +39,6 @@ class HistoryScreen extends StatelessWidget {
               final Map<String, dynamic>? profile =
                   results[1] as Map<String, dynamic>?;
 
-              // 3. Validasi dan Cetak
               if (history.isNotEmpty && profile != null) {
                 if (context.mounted) {
                   await ReportService.generatePdfReport(
@@ -66,7 +64,6 @@ class HistoryScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<List<HistoryItem>>(
-        // Gunakan Stream agar LIVE
         stream: HistoryService.getHistoryStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -85,14 +82,35 @@ class HistoryScreen extends StatelessWidget {
           }
 
           final history = snapshot.data ?? [];
-          if (history.isEmpty) return _buildEmptyState();
+
+          // Jika Kosong, tampilkan Empty State + Footer
+          if (history.isEmpty) {
+            return SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 100),
+                  _buildEmptyState(),
+                  const SizedBox(height: 100),
+                  const AppFooter(),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            itemCount: history.length,
-            itemBuilder: (context, index) =>
-                _buildHistoryItem(context, history[index]),
+            // TAMBAHKAN +1 UNTUK FOOTER
+            itemCount: history.length + 1,
+            itemBuilder: (context, index) {
+              // LOGIKA FOOTER DI AKHIR LIST
+              if (index == history.length) {
+                return const AppFooter();
+              }
+
+              final item = history[index];
+              return _buildHistoryItem(context, item);
+            },
           );
         },
       ),
@@ -125,9 +143,9 @@ class HistoryScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             "Data pengukuran cloud akan muncul di sini.",
-            style: AppStyles.body,
+            style: TextStyle(color: Colors.grey),
           ),
         ],
       ),
@@ -179,8 +197,7 @@ class HistoryScreen extends StatelessWidget {
                       children: [
                         _statusBadge(item),
                         Text(
-                          item.measure.timestamp.toString().substring(11, 16) +
-                              " WIB",
+                          "${item.measure.timestamp.toString().substring(11, 16)} WIB",
                           style: AppStyles.caption.copyWith(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -192,7 +209,7 @@ class HistoryScreen extends StatelessWidget {
                     Text(
                       "pH: ${item.measure.ph}  •  TDS: ${item.measure.tds.toInt()} ppm",
                       style: AppStyles.h2.copyWith(
-                        fontSize: 15,
+                        fontSize: 14,
                         color: AppColors.textDark,
                       ),
                     ),
@@ -259,9 +276,8 @@ class HistoryScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: AppStyles.radiusM),
         title: Text("Hapus Riwayat?", style: AppStyles.h2),
-        content: Text(
+        content: const Text(
           "Data ini akan dihapus permanen dari sistem pusat (Cloud).",
-          style: AppStyles.body,
         ),
         actions: [
           TextButton(
@@ -270,7 +286,13 @@ class HistoryScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text("HAPUS", style: TextStyle(color: AppColors.danger)),
+            child: const Text(
+              "HAPUS",
+              style: TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

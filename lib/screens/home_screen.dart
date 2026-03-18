@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
-import 'package:sipabersih/screens/clean_water_finder_screen.dart';
-import 'package:sipabersih/screens/full_map_screen.dart';
+import 'package:provider/provider.dart'; // Import Provider
+import '../viewmodels/water_viewmodel.dart'; // Import ViewModel
+import 'clean_water_finder_screen.dart';
+import 'full_map_screen.dart';
 import '../utils/constants.dart';
 import '../services/history_service.dart';
+import '../widgets/app_footer.dart'; // Import Footer
 import 'input_data_screen.dart';
 import 'history_screen.dart';
 import 'stats_screen.dart';
@@ -20,19 +23,19 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    // Akses ViewModel (Source of Truth)
+    final waterVM = context.watch<WaterViewModel>();
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    // Tinggi header dikunci agar pas untuk AppBar dan Identitas
     const double headerHeight = 110.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
-        // GUNAKAN COLUMN AGAR BISA MEMBAGI AREA TETAP DAN AREA SCROLL
         children: [
-          // 1. HEADER BIRU TETAP (FIXED)
+          // 1. HEADER TETAP (FIXED) - Tidak Bergeser
           _buildFixedHeader(statusBarHeight + headerHeight),
 
-          // 2. AREA KONTEN YANG BISA DI-SCROLL
+          // 2. AREA SCROLLABLE
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -40,17 +43,41 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMainStatusCard(),
-                  const SizedBox(height: 16),
-                  _buildMapPreview(), // Pratinjau Peta
+                  // MENGGUNAKAN DATA DARI VIEWMODEL (Anti-Spam Error)
+                  StreamBuilder<List<HistoryItem>>(
+                    stream: waterVM.waterStream,
+                    builder: (context, snapshot) {
+                      final history = snapshot.data ?? [];
+                      final lastData = history.isNotEmpty
+                          ? history.first
+                          : null;
+                      final color =
+                          lastData?.result.color ?? AppColors.accentBlue;
+
+                      return Column(
+                        children: [
+                          _buildMainStatusCard(lastData, color),
+                          const SizedBox(height: 16),
+                          _buildMapPreview(history),
+                        ],
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 32),
                   Text(
                     "Layanan Utama",
-                    style: AppStyles.h2.copyWith(fontSize: 16),
+                    style: AppStyles.h2.copyWith(
+                      fontSize: 16,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _buildMenuGrid(),
+
                   const SizedBox(height: 20),
+                  // 3. FOOTER IDENTITAS
+                  const AppFooter(),
                 ],
               ),
             ),
@@ -60,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // WIDGET HEADER TETAP (Tidak akan ikut scroll)
+  // HEADER LOGO & JUDUL (Symmetrical)
   Widget _buildFixedHeader(double totalHeight) {
     return Container(
       width: double.infinity,
@@ -81,18 +108,17 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // AppBar Ramping di dalam header tetap
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 48), // Spacer agar judul tetap tengah
+                const SizedBox(width: 48),
                 Text(
                   "SIPABERSIH",
                   style: AppStyles.h1.copyWith(
                     color: Colors.white,
                     fontSize: 18,
                     letterSpacing: 2,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 Padding(
@@ -110,12 +136,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 5),
             Text(
-              "Sistem Monitoring Air Nasional",
+              "Industrial Monitoring Dashboard",
               style: TextStyle(
                 color: Colors.white.withOpacity(0.7),
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 1,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
               ),
             ),
           ],
@@ -124,238 +150,170 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- WIDGET PETA PRATINJAU (Tetap Sama) ---
-  Widget _buildMapPreview() {
-    return StreamBuilder<List<HistoryItem>>(
-      stream: HistoryService.getHistoryStream(),
-      builder: (context, snapshot) {
-        final history = snapshot.data ?? [];
-        ll.LatLng center = history.isNotEmpty
-            ? ll.LatLng(
-                history.first.measure.latitude,
-                history.first.measure.longitude,
-              )
-            : const ll.LatLng(-6.2000, 106.8166);
-
-        return InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const FullMapScreen()),
-            );
-          },
-          borderRadius: AppStyles.radiusL,
-          child: Container(
-            width: double.infinity,
-            height: 140,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: AppStyles.radiusL,
-              boxShadow: AppStyles.softShadow,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: AppStyles.radiusL,
-              child: Stack(
-                children: [
-                  IgnorePointer(
-                    child: fm.FlutterMap(
-                      options: fm.MapOptions(
-                        initialCenter: center,
-                        initialZoom: 10,
-                        interactionOptions: const fm.InteractionOptions(
-                          flags: fm.InteractiveFlag.none,
-                        ),
-                      ),
-                      children: [
-                        fm.TileLayer(
-                          urlTemplate:
-                              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                          subdomains: const ['a', 'b', 'c', 'd'],
-                          userAgentPackageName: 'id.sipabersih.pro',
-                        ),
-                        fm.MarkerLayer(
-                          markers: history.map((item) {
-                            return fm.Marker(
-                              point: ll.LatLng(
-                                item.measure.latitude,
-                                item.measure.longitude,
-                              ),
-                              width: 30,
-                              height: 30,
-                              child: Icon(
-                                Icons.location_on,
-                                color: item.result.status == "AMAN"
-                                    ? Colors.green
-                                    : Colors.red,
-                                size: 20,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildMapOverlay(),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMapOverlay() {
+  // KARTU STATUS (Compact & Consistent)
+  Widget _buildMainStatusCard(HistoryItem? lastData, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.black.withOpacity(0.4), Colors.transparent],
-        ),
+        color: Colors.white,
+        borderRadius: AppStyles.radiusL,
+        boxShadow: AppStyles.softShadow,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.map_rounded, color: Colors.white, size: 14),
-              const SizedBox(width: 8),
-              Text(
-                "SEBARAN TITIK AIR",
-                style: AppStyles.caption.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                  letterSpacing: 1,
+              Row(
+                children: [
+                  Icon(Icons.water_drop_rounded, color: color, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    "STATUS TERAKHIR",
+                    style: AppStyles.caption.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  lastData != null
+                      ? "Skor: ${lastData.result.score}"
+                      : "Skor: --",
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
                 ),
               ),
             ],
           ),
-          const Icon(Icons.fullscreen_rounded, color: Colors.white70, size: 18),
+          const SizedBox(height: 16),
+          Text(
+            lastData?.result.status ?? "BELUM ADA DATA",
+            style: AppStyles.h1.copyWith(
+              fontSize: 22,
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _miniPill(
+                lastData != null ? "pH ${lastData.measure.ph}" : "pH --",
+                color,
+              ),
+              const SizedBox(width: 8),
+              _miniPill(
+                lastData != null
+                    ? "${lastData.measure.tds.toInt()} ppm"
+                    : "-- ppm",
+                color,
+              ),
+              const SizedBox(width: 8),
+              _miniPill(
+                lastData != null
+                    ? "${lastData.measure.turbidity.toInt()} NTU"
+                    : "-- NTU",
+                color,
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMainStatusCard() {
-    return StreamBuilder<List<HistoryItem>>(
-      stream: HistoryService.getHistoryStream(),
-      builder: (context, snapshot) {
-        final history = snapshot.data ?? [];
-        final lastData = history.isNotEmpty ? history.first : null;
-        final color = lastData?.result.color ?? AppColors.accentBlue;
+  // MAP PREVIEW (Consistent & Safe)
+  Widget _buildMapPreview(List<HistoryItem> history) {
+    ll.LatLng center = history.isNotEmpty
+        ? ll.LatLng(
+            history.first.measure.latitude,
+            history.first.measure.longitude,
+          )
+        : const ll.LatLng(-6.2000, 106.8166);
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: AppStyles.radiusL,
-            boxShadow: AppStyles.softShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const FullMapScreen()),
+      ),
+      borderRadius: AppStyles.radiusL,
+      child: Container(
+        width: double.infinity,
+        height: 140,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: AppStyles.radiusL,
+          boxShadow: AppStyles.softShadow,
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: ClipRRect(
+          borderRadius: AppStyles.radiusL,
+          child: Stack(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.water_drop_rounded, color: color, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        "STATUS TERAKHIR",
-                        style: AppStyles.caption.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      lastData != null
-                          ? "Skor: ${lastData.result.score}"
-                          : "Skor: --",
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
+              IgnorePointer(
+                child: fm.FlutterMap(
+                  options: fm.MapOptions(
+                    initialCenter: center,
+                    initialZoom: 10,
+                    interactionOptions: const fm.InteractionOptions(
+                      flags: fm.InteractiveFlag.none,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                lastData?.result.status ?? "BELUM ADA DATA",
-                style: AppStyles.h1.copyWith(
-                  fontSize: 22,
-                  color: color,
-                  fontWeight: FontWeight.w900,
+                  children: [
+                    fm.TileLayer(
+                      urlTemplate:
+                          'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                      subdomains: const ['a', 'b', 'c', 'd'],
+                      userAgentPackageName: 'id.sipabersih.pro',
+                    ),
+                    fm.MarkerLayer(
+                      markers: history.map((item) {
+                        return fm.Marker(
+                          point: ll.LatLng(
+                            item.measure.latitude,
+                            item.measure.longitude,
+                          ),
+                          width: 30,
+                          height: 30,
+                          child: Icon(
+                            Icons.location_on,
+                            color: item.result.status == "AMAN"
+                                ? Colors.green
+                                : Colors.red,
+                            size: 20,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _miniPill(
-                    lastData != null ? "pH ${lastData.measure.ph}" : "pH --",
-                    color,
-                  ),
-                  const SizedBox(width: 8),
-                  _miniPill(
-                    lastData != null
-                        ? "${lastData.measure.tds.toInt()} ppm"
-                        : "-- ppm",
-                    color,
-                  ),
-                  const SizedBox(width: 8),
-                  _miniPill(
-                    lastData != null
-                        ? "${lastData.measure.turbidity.toInt()} NTU"
-                        : "-- NTU",
-                    color,
-                  ),
-                ],
-              ),
+              _buildMapOverlay(),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _miniPill(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: label.contains("--")
-            ? AppColors.background
-            : color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: AppStyles.caption.copyWith(
-          color: label.contains("--") ? AppColors.textLight : color,
-          fontWeight: FontWeight.bold,
-          fontSize: 10,
         ),
       ),
     );
   }
+
+  // --- WIDGET PENDUKUNG (GRID & PILLS) ---
 
   Widget _buildMenuGrid() {
     return GridView.count(
@@ -442,6 +400,60 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(title, style: AppStyles.h2.copyWith(fontSize: 13)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _miniPill(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: label.contains("--")
+            ? AppColors.background
+            : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: AppStyles.caption.copyWith(
+          color: label.contains("--") ? AppColors.textLight : color,
+          fontWeight: FontWeight.bold,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapOverlay() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black.withOpacity(0.4), Colors.transparent],
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.map_rounded, color: Colors.white, size: 14),
+              const SizedBox(width: 8),
+              Text(
+                "SEBARAN TITIK AIR",
+                style: AppStyles.caption.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const Icon(Icons.fullscreen_rounded, color: Colors.white70, size: 18),
+        ],
       ),
     );
   }
