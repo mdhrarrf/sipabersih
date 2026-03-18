@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import provider
+import 'package:sipabersih/viewmodels/water_viewmodel.dart';
 import 'viewmodels/auth_viewmodel.dart'; // Import viewmodel
 import 'screens/login_screen.dart';
 import 'screens/main_navigation.dart';
@@ -12,7 +13,12 @@ void main() async {
   runApp(
     // Daftarkan semua ViewModel di sini
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthViewModel())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider(
+          create: (_) => WaterViewModel(),
+        ), // Tambahkan ini
+      ],
       child: const SipabersihApp(),
     ),
   );

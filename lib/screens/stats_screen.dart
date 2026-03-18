@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:sipabersih/viewmodels/water_viewmodel.dart';
 import '../services/history_service.dart';
 import '../widgets/water_chart.dart';
 import '../utils/constants.dart';
@@ -38,8 +40,7 @@ class StatsScreen extends StatelessWidget {
           // 2. Konten Statistik Real-time
           SliverToBoxAdapter(
             child: StreamBuilder<List<HistoryItem>>(
-              stream:
-                  HistoryService.getHistoryStream(), // Mendengarkan aliran data dari Cloud
+              stream: context.read<WaterViewModel>().waterStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'result_screen.dart';
-import '../services/history_service.dart';
+import 'package:provider/provider.dart'; // Import Provider
+import '../viewmodels/water_viewmodel.dart'; // Import ViewModel
 import '../models/water_measure.dart';
 import '../services/analysis_service.dart';
 import '../utils/constants.dart';
+import 'result_screen.dart';
 
 class InputDataScreen extends StatefulWidget {
   const InputDataScreen({super.key});
@@ -19,58 +20,46 @@ class _InputDataScreenState extends State<InputDataScreen> {
   final _turbidityController = TextEditingController();
   final _tempController = TextEditingController();
 
-  // --- TAMBAHKAN DEKLARASI INI ---
-  bool _isLoading = false;
-
   void _submitData() async {
     if (_formKey.currentState!.validate()) {
-      // Aktifkan Loading
-      setState(() => _isLoading = true);
+      final waterVM = context.read<WaterViewModel>();
 
-      try {
-        final newData = WaterMeasure(
-          ph: double.parse(_phController.text),
-          tds: double.parse(_tdsController.text),
-          turbidity: double.parse(_turbidityController.text),
-          temperature: double.parse(_tempController.text),
-          timestamp: DateTime.now(),
+      final newData = WaterMeasure(
+        ph: double.parse(_phController.text),
+        tds: double.parse(_tdsController.text),
+        turbidity: double.parse(_turbidityController.text),
+        temperature: double.parse(_tempController.text),
+        timestamp: DateTime.now(),
+      );
+
+      final result = AnalysisService.calculateQuality(newData);
+
+      // PANGGIL LOGIKA DARI VIEWMODEL
+      final success = await waterVM.saveMeasure(newData, result);
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ResultScreen(measure: newData, result: result),
+          ),
         );
-
-        final result = AnalysisService.calculateQuality(newData);
-
-        // KIRIM KE SUPABASE (CLOUD)
-        await HistoryService.addHistory(newData, result);
-
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  ResultScreen(measure: newData, result: result),
-            ),
-          );
-        }
-      } catch (e) {
-        // Tampilkan pesan jika internet bermasalah atau gagal simpan
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Gagal Simpan: $e"),
-              backgroundColor: AppColors.danger,
-            ),
-          );
-        }
-      } finally {
-        // Matikan Loading apa pun hasilnya
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+      } else if (waterVM.errorMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(waterVM.errorMessage!),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final waterVM = context.watch<WaterViewModel>(); // Pantau loading state
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -91,50 +80,13 @@ class _InputDataScreenState extends State<InputDataScreen> {
               _buildHeaderInfo(),
               const SizedBox(height: 30),
 
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: AppStyles.radiusL,
-                  boxShadow: AppStyles.softShadow,
-                ),
-                child: Column(
-                  children: [
-                    _buildTextField(
-                      _phController,
-                      "pH Air",
-                      "Contoh: 7.0",
-                      Icons.science_rounded,
-                    ),
-                    _buildTextField(
-                      _tdsController,
-                      "TDS (ppm)",
-                      "Contoh: 150",
-                      Icons.opacity_rounded,
-                    ),
-                    _buildTextField(
-                      _turbidityController,
-                      "Turbidity (NTU)",
-                      "Contoh: 3.5",
-                      Icons.waves_rounded,
-                    ),
-                    _buildTextField(
-                      _tempController,
-                      "Suhu (°C)",
-                      "Contoh: 27.5",
-                      Icons.thermostat_rounded,
-                    ),
-                  ],
-                ),
-              ),
+              _buildFormContainer(),
 
               const SizedBox(height: 40),
 
-              // TOMBOL DENGAN INDIKATOR LOADING
+              // Tombol merespon status loading dari ViewModel
               ElevatedButton(
-                onPressed: _isLoading
-                    ? null
-                    : _submitData, // Disable tombol saat loading
+                onPressed: waterVM.isLoading ? null : _submitData,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accentBlue,
                   padding: const EdgeInsets.symmetric(vertical: 18),
@@ -142,7 +94,7 @@ class _InputDataScreenState extends State<InputDataScreen> {
                     borderRadius: AppStyles.radiusM,
                   ),
                 ),
-                child: _isLoading
+                child: waterVM.isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
@@ -159,7 +111,6 @@ class _InputDataScreenState extends State<InputDataScreen> {
                         ),
                       ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -167,27 +118,60 @@ class _InputDataScreenState extends State<InputDataScreen> {
     );
   }
 
-  // Fungsi helper _buildTextField dan _buildHeaderInfo tetap sama seperti sebelumnya...
-  Widget _buildHeaderInfo() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Data Parameter",
-          style: AppStyles.h1.copyWith(
-            fontSize: 24,
-            color: AppColors.primaryDark,
-          ),
+  // Widget Helper _buildFormContainer, _buildTextField tetap sama dengan style Luxury Blue Anda...
+  Widget _buildHeaderInfo() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Data Parameter",
+        style: AppStyles.h1.copyWith(
+          fontSize: 24,
+          color: AppColors.primaryDark,
         ),
-        const SizedBox(height: 8),
-        Text(
-          "Masukkan hasil pembacaan sensor IoT untuk mendapatkan analisis kualitas air.",
-          style: AppStyles.body,
+      ),
+      const SizedBox(height: 8),
+      Text(
+        "Masukkan hasil pembacaan sensor IoT untuk mendapatkan analisis kualitas air.",
+        style: AppStyles.body,
+      ),
+    ],
+  );
+  Widget _buildFormContainer() => Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: AppStyles.radiusL,
+      boxShadow: AppStyles.softShadow,
+    ),
+    child: Column(
+      children: [
+        _buildTextField(
+          _phController,
+          "pH Air",
+          "Contoh: 7.0",
+          Icons.science_rounded,
+        ),
+        _buildTextField(
+          _tdsController,
+          "TDS (ppm)",
+          "Contoh: 150",
+          Icons.opacity_rounded,
+        ),
+        _buildTextField(
+          _turbidityController,
+          "Turbidity (NTU)",
+          "Contoh: 3.5",
+          Icons.waves_rounded,
+        ),
+        _buildTextField(
+          _tempController,
+          "Suhu (°C)",
+          "Contoh: 27.5",
+          Icons.thermostat_rounded,
         ),
       ],
-    );
-  }
-
+    ),
+  );
   Widget _buildTextField(
     TextEditingController controller,
     String label,
