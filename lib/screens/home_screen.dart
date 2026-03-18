@@ -16,33 +16,41 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    // Menghitung status bar agar lengkungan tidak tergeser notch HP
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
+    const double fixedContentHeight = 150.0; // TINGGI TETAP AREA BIRU
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // 1. Hero Header (Warna Biru Deep Navy)
-          _buildHeroBackground(),
+          // 1. BACKGROUND TETAP (Lengkungan Terkunci di Sini)
+          _buildHeroBackground(statusBarHeight + fixedContentHeight),
 
+          // 2. KONTEN SCROLLABLE
           SafeArea(
+            bottom: false,
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // 2. AppBar Custom Transparan
+                // AppBar Ramping & Simetris
                 _buildSliverAppBar(),
 
-                // 3. Konten Utama
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 20),
-                        _buildMainStatusCard(), // Kartu Status Premium
-                        const SizedBox(height: 35),
-                        Text("Layanan Utama", style: AppStyles.h2),
+                        const SizedBox(height: 10),
+                        _buildMainStatusCard(), // Kartu Status Utama
+                        const SizedBox(height: 32),
+                        Text(
+                          "Layanan Utama",
+                          style: AppStyles.h2.copyWith(fontSize: 16),
+                        ),
                         const SizedBox(height: 16),
-                        _buildMenuGrid(), // Grid Menu dengan Soft Shadow
+                        _buildMenuGrid(),
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -56,41 +64,54 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeroBackground() {
+  // LENGKUNGAN SIMETRIS & TERKUNCI
+  Widget _buildHeroBackground(double totalHeight) {
     return Container(
-      height: 300,
+      height: totalHeight,
+      width: double.infinity,
       decoration: const BoxDecoration(
-        color: AppColors.primaryDark, // Sekarang Biru Tua, bukan Hitam
-        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(50)),
-        gradient: AppColors.primaryGradient, // Memberikan efek kedalaman air
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(32), // Nilai lengkungan simetris kiri-kanan
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 80,
       backgroundColor: Colors.transparent,
       elevation: 0,
       pinned: true,
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: false,
-        titlePadding: const EdgeInsets.only(left: 24, bottom: 16),
-        title: Text(
-          "SIPABERSIH",
-          style: AppStyles.h1.copyWith(
-            color: Colors.white,
-            fontSize: 22,
-            letterSpacing: 1.2,
-          ),
+      centerTitle: true, // Judul selalu di tengah
+      toolbarHeight: 60,
+      automaticallyImplyLeading: false,
+      title: Text(
+        "SIPABERSIH",
+        style: AppStyles.h1.copyWith(
+          color: Colors.white,
+          fontSize: 18,
+          letterSpacing: 2,
+          fontWeight: FontWeight.w800,
         ),
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 24),
-          child: CircleAvatar(
-            backgroundColor: Colors.white.withOpacity(0.15),
-            child: const Icon(Icons.water_drop_outlined, color: Colors.white),
+          padding: const EdgeInsets.only(right: 12),
+          child: IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ),
       ],
@@ -102,56 +123,70 @@ class _HomeScreenState extends State<HomeScreen> {
       future: HistoryService.getLastData(),
       builder: (context, snapshot) {
         final lastData = snapshot.data;
-        // Gunakan accentBlue jika belum ada data
         final color = lastData?.result.color ?? AppColors.accentBlue;
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: AppStyles.radiusL,
             boxShadow: AppStyles.softShadow,
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.analytics_outlined,
-                      color: color,
-                      size: 24,
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.water_drop_rounded, color: color, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "STATUS TERAKHIR",
+                        style: AppStyles.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "Kualitas Air Terakhir",
-                    style: AppStyles.body.copyWith(fontWeight: FontWeight.w600),
-                  ),
+                  if (lastData != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        "Skor: ${lastData.result.score}",
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 16),
               Text(
-                lastData?.result.status ?? "TIDAK ADA DATA",
+                lastData?.result.status ?? "BELUM ADA DATA",
                 style: AppStyles.h1.copyWith(
-                  fontSize: 32,
+                  fontSize: 22,
                   color: color,
-                  letterSpacing: -0.5,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 20),
-              if (lastData != null) _buildQuickStats(lastData),
-              if (lastData == null)
-                Text(
-                  "Input data pertama untuk melihat hasil",
-                  style: AppStyles.caption,
-                ),
+              if (lastData != null) ...[
+                const SizedBox(height: 16),
+                _buildQuickStats(lastData),
+              ],
             ],
           ),
         );
@@ -160,13 +195,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickStats(HistoryItem data) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
+    return Row(
       children: [
         _miniPill("pH ${data.measure.ph}"),
+        const SizedBox(width: 8),
         _miniPill("${data.measure.tds.toInt()} ppm"),
+        const SizedBox(width: 8),
         _miniPill("${data.measure.turbidity.toInt()} NTU"),
       ],
     );
@@ -174,17 +208,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _miniPill(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.lightBlue,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.lightBlue.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
         style: AppStyles.caption.copyWith(
           color: AppColors.primaryDark,
           fontWeight: FontWeight.bold,
-          fontSize: 11,
+          fontSize: 10,
         ),
       ),
     );
@@ -212,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _menuCard(
           "Statistik Air",
-          Icons.auto_graph_rounded,
+          Icons.analytics_rounded,
           Colors.indigo,
           const StatsScreen(),
         ),
@@ -238,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(builder: (context) => destination),
         );
-        setState(() {}); // Segarkan UI saat kembali
+        setState(() {});
       },
       borderRadius: AppStyles.radiusM,
       child: Container(
@@ -256,10 +290,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: color.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 12),
-            Text(title, style: AppStyles.h2.copyWith(fontSize: 14)),
+            Text(title, style: AppStyles.h2.copyWith(fontSize: 13)),
           ],
         ),
       ),

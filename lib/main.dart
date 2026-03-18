@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Wajib ada
-import 'screens/home_screen.dart';
+import 'package:sipabersih/screens/main_navigation.dart';
 import 'utils/constants.dart';
 
 void main() {
@@ -30,7 +30,7 @@ class SipabersihApp extends StatelessWidget {
           centerTitle: true,
         ),
       ),
-      home: const HomeScreen(),
+      home: const MainNavigation(),
     );
   }
 }
