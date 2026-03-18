@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sipabersih/screens/input_data_screen.dart';
 import '../utils/constants.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -104,10 +105,16 @@ class HomeScreen extends StatelessWidget {
   Widget _buildMenuCard(BuildContext context, String title, IconData icon, Color color) {
     return InkWell(
       onTap: () {
-        // Navigasi akan kita buat di Step berikutnya
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Fitur $title segera hadir")),
-        );
+        if (title == "Input Data") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const InputDataScreen()),
+          );
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Fitur $title segera hadir")));
+        }
       },
       child: Container(
         decoration: BoxDecoration(
