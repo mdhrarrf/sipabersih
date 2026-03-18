@@ -1,58 +1,68 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../utils/constants.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Logika Tinggi yang Dikunci (Sama dengan HomeScreen tapi lebih tinggi sedikit untuk Profil)
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    const double fixedHeaderHeight =
-        260.0; // Ditinggikan agar pas membungkus foto & nama
+    const double fixedHeaderHeight = 260.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // 2. BACKGROUND BIRU (Lengkungan yang Stay & Simetris)
-          _buildHeroBackground(statusBarHeight + fixedHeaderHeight),
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: AuthService().getProfile(), // Ambil data dari Supabase
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          SafeArea(
-            bottom: false,
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  _buildTopBar(), // Tulisan PROFIL PETUGAS
-                  // 3. Header Profil (Tetap berada di dalam area Biru)
-                  _buildProfileHeader(),
+          // Data dari database
+          final profileData = snapshot.data;
+          final String name = profileData?['full_name'] ?? "Petugas";
+          final String petugasId =
+              profileData?['petugas_id'] ?? "ID Tidak Ditemukan";
 
-                  const SizedBox(height: 40),
+          return Stack(
+            children: [
+              _buildHeroBackground(statusBarHeight + fixedHeaderHeight),
+              SafeArea(
+                bottom: false,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      _buildTopBar(),
 
-                  // 4. Menu Section (Berada di area putih/background)
-                  _buildMenuSection(context),
-                  const SizedBox(height: 40),
-                ],
+                      // Data Nama & ID Sekarang Dinamis
+                      _buildProfileHeader(name, petugasId),
+
+                      const SizedBox(height: 40),
+                      _buildMenuSection(context),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 
-  // Fungsi Lengkungan Simetris (Identik dengan HomeScreen)
+  // Header Background Tetap Sama (Style Luxury Blue)
   Widget _buildHeroBackground(double height) {
     return Container(
       height: height,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(32), // Lengkungan yang konsisten
-        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
@@ -80,53 +90,32 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(String name, String id) {
     return Column(
       children: [
         const SizedBox(height: 10),
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.lightBlue,
-                child: Icon(
-                  Icons.person_rounded,
-                  size: 60,
-                  color: AppColors.primaryDark,
-                ),
-              ),
+        const CircleAvatar(
+          radius: 50,
+          backgroundColor: Colors.white,
+          child: CircleAvatar(
+            radius: 46,
+            backgroundColor: AppColors.lightBlue,
+            child: Icon(
+              Icons.person_rounded,
+              size: 50,
+              color: AppColors.primaryDark,
             ),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: AppColors.success,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.verified_user,
-                size: 16,
-                color: Colors.white,
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 15),
         Text(
-          "Relawan Siaga 01",
+          name, // NAMA DINAMIS
           style: AppStyles.h1.copyWith(color: Colors.white, fontSize: 20),
         ),
         Text(
-          "ID: SIPA-BNPB-2024",
+          "ID: $id", // ID PETUGAS DINAMIS
           style: AppStyles.caption.copyWith(
             color: Colors.white70,
-            letterSpacing: 1,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -150,30 +139,34 @@ class ProfileScreen extends StatelessWidget {
               Icons.edit_note_rounded,
               "Informasi Akun",
               Colors.blue,
+              () {},
             ),
             _buildProfileItem(
               Icons.security_rounded,
               "Keamanan & PIN",
               Colors.orange,
-            ),
-            _buildProfileItem(
-              Icons.history_rounded,
-              "Aktivitas Saya",
-              Colors.teal,
+              () {},
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Divider(height: 30, thickness: 0.5),
             ),
             _buildProfileItem(
-              Icons.info_outline_rounded,
-              "Tentang Sipabersih",
-              Colors.indigo,
-            ),
-            _buildProfileItem(
               Icons.logout_rounded,
               "Keluar Aplikasi",
               AppColors.danger,
+              () async {
+                await AuthService().signOut();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                    (route) => false,
+                  );
+                }
+              },
               isLast: true,
             ),
           ],
@@ -185,7 +178,8 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildProfileItem(
     IconData icon,
     String title,
-    Color color, {
+    Color color,
+    VoidCallback onTap, {
     bool isLast = false,
   }) {
     return ListTile(
@@ -210,7 +204,7 @@ class ProfileScreen extends StatelessWidget {
         size: 14,
         color: Colors.grey,
       ),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }

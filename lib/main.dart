@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Wajib ada
+import 'package:sipabersih/screens/login_screen.dart';
 import 'package:sipabersih/screens/main_navigation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'utils/constants.dart';
 
-void main() {
-  // Memastikan plugin database dan sistem flutter siap
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // MENGHUBUNGKAN KE SERVER SUPABASE
+  await Supabase.initialize(
+    url: 'https://udppcpqeismzsakcparz.supabase.co', // Ganti dengan Project URL dari Supabase
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkcHBjcHFlaXNtenNha2NwYXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MTQ1MTAsImV4cCI6MjA4OTM5MDUxMH0.3_4eeQLrCV2XTKcWjGnIiFhCDLOp0WuLaEoh5x3IfCU', // Ganti dengan anon key dari Supabase
+  );
+
   runApp(const SipabersihApp());
 }
-
 class SipabersihApp extends StatelessWidget {
   const SipabersihApp({super.key});
 
@@ -30,7 +37,9 @@ class SipabersihApp extends StatelessWidget {
           centerTitle: true,
         ),
       ),
-      home: const MainNavigation(),
+      home: Supabase.instance.client.auth.currentUser == null
+          ? const LoginScreen()
+          : const MainNavigation(),
     );
   }
 }
