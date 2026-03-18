@@ -7,25 +7,43 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mengambil daftar riwayat dari service
-    final List<HistoryItem> history = HistoryService.getHistory();
-
     return Scaffold(
       appBar: AppBar(title: const Text("Riwayat Analisis")),
-      body: history.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(15),
-              itemCount: history.length,
-              itemBuilder: (context, index) {
-                final item = history[index];
-                return _buildHistoryCard(item);
-              },
-            ),
+      // --- PERBAIKAN: Gunakan FutureBuilder untuk menunggu data dari Database ---
+      body: FutureBuilder<List<HistoryItem>>(
+        future: HistoryService.getHistory(), // Memanggil Database
+        builder: (context, snapshot) {
+          // 1. Tampilkan loading saat database sedang bekerja
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // 2. Jika terjadi error saat membaca database
+          if (snapshot.hasError) {
+            return Center(child: Text("Terjadi kesalahan: ${snapshot.error}"));
+          }
+
+          // 3. Ambil data hasil database (jika kosong, tampilkan empty state)
+          final history = snapshot.data ?? [];
+
+          if (history.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          // 4. Jika ada data, tampilkan dalam bentuk list
+          return ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: history.length,
+            itemBuilder: (context, index) {
+              final item = history[index];
+              return _buildHistoryCard(item);
+            },
+          );
+        },
+      ),
     );
   }
 
-  // Tampilan jika data masih kosong
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -42,7 +60,6 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  // Tampilan Kartu Riwayat
   Widget _buildHistoryCard(HistoryItem item) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

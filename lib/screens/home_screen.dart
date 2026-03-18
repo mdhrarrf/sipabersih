@@ -14,10 +14,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    // MENGAMBIL DATA TERAKHIR
-    final lastItem = HistoryService.getLastData();
-    final Color statusColor = lastItem?.result.color ?? AppColors.primaryBlue;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -32,7 +28,26 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 25),
-            _buildStatusCard(lastItem, statusColor), // KIRIM DATA KE CARD
+
+            // --- PERBAIKAN DI SINI: Gunakan FutureBuilder ---
+            FutureBuilder<HistoryItem?>(
+              future: HistoryService.getLastData(), // Memanggil database
+              builder: (context, snapshot) {
+                // 1. Tampilkan Loading saat database sedang bekerja
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // 2. Ambil data dari hasil database (snapshot)
+                final lastItem = snapshot.data;
+                final Color statusColor =
+                    lastItem?.result.color ?? AppColors.primaryBlue;
+
+                // 3. Tampilkan Card Status dengan data yang sudah ada
+                return _buildStatusCard(lastItem, statusColor);
+              },
+            ),
+
             const SizedBox(height: 30),
             const Text(
               "Menu Utama",

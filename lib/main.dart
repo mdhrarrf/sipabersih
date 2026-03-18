@@ -3,6 +3,7 @@ import 'screens/home_screen.dart';
 import 'utils/constants.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const SipabersihApp());
 }
 
