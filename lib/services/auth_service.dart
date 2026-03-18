@@ -4,29 +4,20 @@ class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // 1. Fungsi Registrasi Petugas + Simpan ke Tabel Profiles
+  // lib/services/auth_service.dart
+
   Future<void> register({
     required String email,
     required String password,
     required String fullName,
     required String petugasId,
   }) async {
-    // A. Buat User di Auth Supabase
-    final AuthResponse res = await _supabase.auth.signUp(
+    // Database Trigger membutuhkan data ini di dalam user_metadata
+    await _supabase.auth.signUp(
       email: email,
       password: password,
+      data: {'full_name': fullName, 'petugas_id': petugasId},
     );
-
-    final User? user = res.user;
-
-    // B. Jika berhasil, simpan detailnya ke tabel 'profiles'
-    if (user != null) {
-      await _supabase.from('profiles').insert({
-        'id': user.id, // Ambil ID dari Auth
-        'full_name': fullName,
-        'petugas_id': petugasId,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
-    }
   }
 
   // Fungsi Login & SignOut tetap sama seperti sebelumnya...

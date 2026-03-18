@@ -14,32 +14,58 @@ class InputDataScreen extends StatefulWidget {
 
 class _InputDataScreenState extends State<InputDataScreen> {
   final _formKey = GlobalKey<FormState>();
-
-  // Controller untuk menangkap input user
   final _phController = TextEditingController();
   final _tdsController = TextEditingController();
   final _turbidityController = TextEditingController();
   final _tempController = TextEditingController();
 
-  void _submitData() {
+  // --- TAMBAHKAN DEKLARASI INI ---
+  bool _isLoading = false;
+
+  void _submitData() async {
     if (_formKey.currentState!.validate()) {
-      final newData = WaterMeasure(
-        ph: double.parse(_phController.text),
-        tds: double.parse(_tdsController.text),
-        turbidity: double.parse(_turbidityController.text),
-        temperature: double.parse(_tempController.text),
-        timestamp: DateTime.now(),
-      );
+      // Aktifkan Loading
+      setState(() => _isLoading = true);
 
-      final result = AnalysisService.calculateQuality(newData);
-      HistoryService.addHistory(newData, result);
+      try {
+        final newData = WaterMeasure(
+          ph: double.parse(_phController.text),
+          tds: double.parse(_tdsController.text),
+          turbidity: double.parse(_turbidityController.text),
+          temperature: double.parse(_tempController.text),
+          timestamp: DateTime.now(),
+        );
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ResultScreen(measure: newData, result: result),
-        ),
-      );
+        final result = AnalysisService.calculateQuality(newData);
+
+        // KIRIM KE SUPABASE (CLOUD)
+        await HistoryService.addHistory(newData, result);
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ResultScreen(measure: newData, result: result),
+            ),
+          );
+        }
+      } catch (e) {
+        // Tampilkan pesan jika internet bermasalah atau gagal simpan
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Gagal Simpan: $e"),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      } finally {
+        // Matikan Loading apa pun hasilnya
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 
@@ -54,11 +80,8 @@ class _InputDataScreenState extends State<InputDataScreen> {
         ),
         backgroundColor: AppColors.primaryDark,
         elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
@@ -68,7 +91,6 @@ class _InputDataScreenState extends State<InputDataScreen> {
               _buildHeaderInfo(),
               const SizedBox(height: 30),
 
-              // Kartu Group Input Bernuansa Biru
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -108,28 +130,36 @@ class _InputDataScreenState extends State<InputDataScreen> {
 
               const SizedBox(height: 40),
 
-              // Tombol Submit Biru Aksi
+              // TOMBOL DENGAN INDIKATOR LOADING
               ElevatedButton(
-                onPressed: _submitData,
+                onPressed: _isLoading
+                    ? null
+                    : _submitData, // Disable tombol saat loading
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accentBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(
                     borderRadius: AppStyles.radiusM,
                   ),
-                  elevation: 8,
-                  shadowColor: AppColors.accentBlue.withOpacity(0.4),
                 ),
-                child: Text(
-                  "PROSES ANALISIS SEKARANG",
-                  style: AppStyles.h2.copyWith(
-                    color: Colors.white,
-                    fontSize: 15,
-                  ),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        "PROSES ANALISIS SEKARANG",
+                        style: AppStyles.h2.copyWith(
+                          color: Colors.white,
+                          fontSize: 15,
+                        ),
+                      ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -137,6 +167,7 @@ class _InputDataScreenState extends State<InputDataScreen> {
     );
   }
 
+  // Fungsi helper _buildTextField dan _buildHeaderInfo tetap sama seperti sebelumnya...
   Widget _buildHeaderInfo() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,8 +181,8 @@ class _InputDataScreenState extends State<InputDataScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          "Masukkan hasil pembacaan sensor IoT untuk mendapatkan analisis kualitas air secara akurat.",
-          style: AppStyles.body.copyWith(color: AppColors.textLight),
+          "Masukkan hasil pembacaan sensor IoT untuk mendapatkan analisis kualitas air.",
+          style: AppStyles.body,
         ),
       ],
     );
@@ -164,52 +195,23 @@ class _InputDataScreenState extends State<InputDataScreen> {
     IconData icon,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 24.0),
+      padding: const EdgeInsets.only(bottom: 20.0),
       child: TextFormField(
         controller: controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        style: AppStyles.h2.copyWith(fontSize: 16, color: AppColors.textDark),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: AppStyles.caption.copyWith(
-            color: AppColors.primaryDark.withOpacity(0.6),
-          ),
+          prefixIcon: Icon(icon, color: AppColors.accentBlue),
           hintText: hint,
-          hintStyle: AppStyles.caption.copyWith(color: Colors.grey.shade400),
-          prefixIcon: Container(
-            margin: const EdgeInsets.only(right: 12, left: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.lightBlue, // Biru Muda Soft
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.primaryDark, size: 20),
-          ),
           filled: true,
-          fillColor: AppColors.lightBlue.withOpacity(
-            0.3,
-          ), // Background input biru transparan
+          fillColor: AppColors.lightBlue.withOpacity(0.2),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none, // Tanpa garis kaku
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: AppColors.accentBlue,
-              width: 1.5,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 20,
-            horizontal: 16,
+            borderSide: BorderSide.none,
           ),
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) return "Wajib diisi";
-          if (double.tryParse(value) == null) return "Gunakan angka valid";
-          return null;
-        },
+        validator: (value) =>
+            (value == null || value.isEmpty) ? "Wajib diisi" : null,
       ),
     );
   }

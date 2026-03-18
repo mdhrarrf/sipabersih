@@ -14,11 +14,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _petugasIdController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _isLoading = false;
+  bool _obscureText = true;
 
   void _handleRegister() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showError("Harap isi semua kolom");
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _fullNameController.text.isEmpty ||
+        _petugasIdController.text.isEmpty) {
+      _showSnackBar(
+        "Harap lengkapi semua formulir pendaftaran",
+        AppColors.danger,
+      );
       return;
     }
 
@@ -32,130 +40,218 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (mounted) {
-        _showSuccess(
-          "Pendaftaran Berhasil! Silakan cek email untuk verifikasi.",
+        _showSnackBar(
+          "Akun Petugas Berhasil Dibuat. Silakan Masuk.",
+          AppColors.success,
         );
-        Navigator.pop(context); // Kembali ke Login
+        Navigator.pop(context); // Kembali ke halaman Login
       }
     } catch (e) {
-      _showError(e.toString());
-    } finally {
-      setState(() => _isLoading = false);
+      String errorMsg = "Terjadi kesalahan sistem";
+
+      if (e.toString().contains("429")) {
+        errorMsg =
+            "Terlalu banyak permintaan. Silakan tunggu beberapa saat lagi.";
+      } else if (e.toString().contains("already registered")) {
+        errorMsg = "Email ini sudah terdaftar sebagai petugas.";
+      }
+
+      _showSnackBar(errorMsg, AppColors.danger);
     }
   }
 
-  void _showError(String msg) {
+  void _showSnackBar(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
-    );
-  }
-
-  void _showSuccess(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.success),
+      SnackBar(
+        content: Text(msg, style: const TextStyle(fontSize: 13)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryDark,
+        backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.primaryDark,
+            size: 20,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  _buildTextField(
-                    _fullNameController,
-                    "Nama Lengkap Petugas",
-                    Icons.person_outline,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    _petugasIdController,
-                    "Nomor ID Petugas (Contoh: SIPA-001)",
-                    Icons.badge_outlined,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    _emailController,
-                    "Email Instansi",
-                    Icons.email_outlined,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    _passwordController,
-                    "Password",
-                    Icons.lock_outline,
-                    isObscure: true,
-                  ),
-                  const SizedBox(height: 35),
-                  _buildRegisterButton(),
-                ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+
+              // 1. Logo Minimalis
+              _buildLogo(),
+
+              const SizedBox(height: 32),
+
+              // 2. Judul & Sub-judul
+              Text(
+                "Pendaftaran Akses",
+                style: AppStyles.h1.copyWith(
+                  fontSize: 26,
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                "Lengkapi data identitas petugas untuk mendapatkan akses ke sistem monitoring.",
+                style: AppStyles.body.copyWith(
+                  color: AppColors.textLight,
+                  height: 1.4,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // 3. Form Group (Field satu per satu dengan label di atas)
+              _buildInputLabel("Nama Lengkap Petugas"),
+              _buildTextField(
+                controller: _fullNameController,
+                hint: "Masukkan nama sesuai identitas",
+                icon: Icons.person_outline_rounded,
+              ),
+
+              const SizedBox(height: 20),
+
+              _buildInputLabel("ID Petugas (SIPA-XXX)"),
+              _buildTextField(
+                controller: _petugasIdController,
+                hint: "Contoh: SIPA-001",
+                icon: Icons.badge_outlined,
+              ),
+
+              const SizedBox(height: 20),
+
+              _buildInputLabel("Alamat Email Instansi"),
+              _buildTextField(
+                controller: _emailController,
+                hint: "email@instansi.go.id",
+                icon: Icons.alternate_email_rounded,
+              ),
+
+              const SizedBox(height: 20),
+
+              _buildInputLabel("Buat Kata Sandi"),
+              _buildTextField(
+                controller: _passwordController,
+                hint: "Minimal 8 karakter",
+                icon: Icons.lock_outline_rounded,
+                isPassword: true,
+              ),
+
+              const SizedBox(height: 40),
+
+              // 4. Tombol Aksi (Solid)
+              _buildRegisterButton(),
+
+              const SizedBox(height: 32),
+
+              // 5. Footer Navigasi
+              _buildLoginFooter(),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildLogo() {
     return Container(
-      height: 180,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.primaryDark,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            "PENDAFTARAN",
-            style: AppStyles.h1.copyWith(
-              color: Colors.white,
-              fontSize: 24,
-              letterSpacing: 2,
-            ),
-          ),
-          Text(
-            "Buat akun akses petugas lapangan",
-            style: AppStyles.caption.copyWith(color: Colors.white70),
-          ),
-        ],
+      child: const Icon(
+        Icons.person_add_alt_1_rounded,
+        color: Colors.white,
+        size: 24,
       ),
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    bool isObscure = false,
+  Widget _buildInputLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 8),
+      child: Text(
+        label,
+        style: AppStyles.caption.copyWith(
+          color: AppColors.primaryDark,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: isObscure,
-      style: const TextStyle(fontSize: 14),
+      obscureText: isPassword ? _obscureText : false,
+      style: AppStyles.body.copyWith(
+        color: AppColors.textDark,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textLight, fontSize: 13),
-        prefixIcon: Icon(icon, color: AppColors.primaryDark, size: 20),
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        prefixIcon: Icon(
+          icon,
+          color: AppColors.primaryDark.withOpacity(0.5),
+          size: 18,
+        ),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _obscureText
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: Colors.grey,
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _obscureText = !_obscureText),
+              )
+            : null,
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        fillColor: AppColors.background.withOpacity(0.3),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+            color: AppColors.primaryDark,
+            width: 1.2,
+          ),
         ),
       ),
     );
@@ -164,26 +260,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildRegisterButton() {
     return SizedBox(
       width: double.infinity,
+      height: 56,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryDark,
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
           ),
-          elevation: 5,
         ),
         child: _isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Text(
-                "DAFTAR SEKARANG",
-                style: TextStyle(
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
                   color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                "Konfirmasi Pendaftaran",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildLoginFooter() {
+    return Center(
+      child: GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: RichText(
+          text: TextSpan(
+            text: "Sudah memiliki akun? ",
+            style: AppStyles.body.copyWith(
+              color: AppColors.textLight,
+              fontSize: 13,
+            ),
+            children: [
+              TextSpan(
+                text: "Masuk Disini",
+                style: TextStyle(
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.underline,
                 ),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }
