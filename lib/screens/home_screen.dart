@@ -119,10 +119,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMainStatusCard() {
-    return FutureBuilder<HistoryItem?>(
-      future: HistoryService.getLastData(),
+    // Kita gunakan StreamBuilder agar Real-time dan konsisten
+    return StreamBuilder<List<HistoryItem>>(
+      stream: HistoryService.getHistoryStream(),
       builder: (context, snapshot) {
-        final lastData = snapshot.data;
+        final history = snapshot.data ?? [];
+        final lastData = history.isNotEmpty ? history.first : null;
+
+        // Jika kosong gunakan Biru, jika ada gunakan warna status (Hijau/Kuning/Merah)
         final color = lastData?.result.color ?? AppColors.accentBlue;
 
         return Container(
@@ -136,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // BARIS 1: Header & Skor
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -153,28 +158,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  if (lastData != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        "Skor: ${lastData.result.score}",
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
+                  // Skor selalu tampil (jika null tampilkan --)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      lastData != null
+                          ? "Skor: ${lastData.result.score}"
+                          : "Skor: --",
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
                       ),
                     ),
+                  ),
                 ],
               ),
+
               const SizedBox(height: 16),
+
+              // BARIS 2: Teks Status (Ukurannya dikunci agar tidak berubah)
               Text(
                 lastData?.result.status ?? "BELUM ADA DATA",
                 style: AppStyles.h1.copyWith(
@@ -183,10 +193,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              if (lastData != null) ...[
-                const SizedBox(height: 16),
-                _buildQuickStats(lastData),
-              ],
+
+              const SizedBox(height: 16),
+
+              // BARIS 3: Quick Stats (SEKARANG SELALU TAMPIL AGAR UKURAN TETAP)
+              Row(
+                children: [
+                  _miniPill(
+                    lastData != null ? "pH ${lastData.measure.ph}" : "pH --",
+                    color,
+                  ),
+                  const SizedBox(width: 8),
+                  _miniPill(
+                    lastData != null
+                        ? "${lastData.measure.tds.toInt()} ppm"
+                        : "-- ppm",
+                    color,
+                  ),
+                  const SizedBox(width: 8),
+                  _miniPill(
+                    lastData != null
+                        ? "${lastData.measure.turbidity.toInt()} NTU"
+                        : "-- NTU",
+                    color,
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -194,29 +226,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickStats(HistoryItem data) {
-    return Row(
-      children: [
-        _miniPill("pH ${data.measure.ph}"),
-        const SizedBox(width: 8),
-        _miniPill("${data.measure.tds.toInt()} ppm"),
-        const SizedBox(width: 8),
-        _miniPill("${data.measure.turbidity.toInt()} NTU"),
-      ],
-    );
-  }
-
-  Widget _miniPill(String label) {
+  // Fungsi pembantu Pill dengan warna dinamis
+  Widget _miniPill(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.lightBlue.withOpacity(0.5),
+        // Jika data kosong, gunakan warna background standar
+        color: label.contains("--")
+            ? AppColors.background
+            : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
         style: AppStyles.caption.copyWith(
-          color: AppColors.primaryDark,
+          color: label.contains("--") ? AppColors.textLight : color,
           fontWeight: FontWeight.bold,
           fontSize: 10,
         ),
