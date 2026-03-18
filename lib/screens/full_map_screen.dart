@@ -4,9 +4,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/map_viewmodel.dart';
 import '../viewmodels/water_viewmodel.dart';
-import '../services/history_service.dart';
 import '../utils/constants.dart';
-import '../widgets/app_footer.dart'; // Import Footer
+import '../widgets/app_footer.dart';
 
 class FullMapScreen extends StatefulWidget {
   const FullMapScreen({super.key});
@@ -20,9 +19,20 @@ class _FullMapScreenState extends State<FullMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. MENDENGARKAN VIEWMODEL (State-Based)
+    final waterVM = context.watch<WaterViewModel>();
     final mapVM = context.watch<MapViewModel>();
-    final waterVM = context.read<WaterViewModel>();
+
+    final historyData = waterVM.history;
     const LatLng defaultCenter = LatLng(-6.2000, 106.8166);
+
+    // 2. TRIGGER GENERATE MARKER (Hanya jika data berubah)
+    // Kita gunakan postFrameCallback agar tidak mengganggu proses build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (historyData.isNotEmpty) {
+        mapVM.generateMarkers(historyData);
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -42,64 +52,55 @@ class _FullMapScreenState extends State<FullMapScreen> {
       ),
       body: Column(
         children: [
-          // 1. AREA PETA (MENGGUNAKAN EXPANDED AGAR FOOTER BISA DI BAWAH)
+          // AREA PETA
           Expanded(
-            child: StreamBuilder<List<HistoryItem>>(
-              stream: waterVM.waterStream,
-              builder: (context, snapshot) {
-                final historyData = snapshot.data ?? [];
-
-                if (snapshot.hasData) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    mapVM.generateMarkers(historyData);
-                  });
-                }
-
-                return Stack(
-                  children: [
-                    // LAYER PETA DASAR
-                    FlutterMap(
-                      mapController: _mapController,
-                      options: const MapOptions(
-                        initialCenter: defaultCenter,
-                        initialZoom: 12,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                          subdomains: const ['a', 'b', 'c', 'd'],
-                          userAgentPackageName: 'id.sipabersih.pro.fullmap',
+            child: waterVM.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Stack(
+                    children: [
+                      // LAYER PETA DASAR
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: const MapOptions(
+                          initialCenter: defaultCenter,
+                          initialZoom: 12,
                         ),
-                        MarkerLayer(markers: mapVM.markers),
-                      ],
-                    ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                            subdomains: const ['a', 'b', 'c', 'd'],
+                            userAgentPackageName: 'id.sipabersih.pro.fullmap',
+                          ),
+                          // Marker diambil dari MapViewModel
+                          MarkerLayer(markers: mapVM.markers),
+                        ],
+                      ),
 
-                    // OVERLAY: PANEL INFO ATAS
-                    _buildTopPanel(mapVM.markers.length),
+                      // OVERLAY: PANEL INFO ATAS
+                      _buildTopPanel(mapVM.markers.length),
 
-                    // OVERLAY: LEGENDA KIRI BAWAH
-                    _buildMapLegend(),
+                      // OVERLAY: LEGENDA KIRI BAWAH
+                      _buildMapLegend(),
 
-                    // OVERLAY: TOMBOL ZOOM TERPISAH (KANAN TENGAH)
-                    _buildZoomControls(),
+                      // OVERLAY: TOMBOL ZOOM TERPISAH (KANAN TENGAH)
+                      _buildZoomControls(),
 
-                    // OVERLAY: TOMBOL LOKASI BENCANA (KANAN BAWAH)
-                    _buildMainAction(historyData),
-                  ],
-                );
-              },
-            ),
+                      // OVERLAY: TOMBOL LOKASI BENCANA (KANAN BAWAH)
+                      _buildMainAction(historyData),
+                    ],
+                  ),
           ),
 
-          // 2. FOOTER APLIKASI (KONSISTEN DENGAN PAGE LAIN)
+          // FOOTER IDENTITAS
           const AppFooter(),
         ],
       ),
     );
   }
 
-  // PANEL INFORMASI ATAS
+  // --- UI COMPONENTS ---
+
   Widget _buildTopPanel(int count) {
     return Positioned(
       top: 15,
@@ -135,7 +136,6 @@ class _FullMapScreenState extends State<FullMapScreen> {
     );
   }
 
-  // LEGENDA PETA
   Widget _buildMapLegend() {
     return Positioned(
       bottom: 20,
@@ -191,11 +191,11 @@ class _FullMapScreenState extends State<FullMapScreen> {
     );
   }
 
-  // PERBAIKAN: TOMBOL ZOOM TERPISAH
   Widget _buildZoomControls() {
     return Positioned(
       right: 15,
-      top: MediaQuery.of(context).size.height * 0.3,
+      // Dikunci di posisi kanan tengah agar tidak nabrak tombol di bawah
+      top: MediaQuery.of(context).size.height * 0.25,
       child: Column(
         children: [
           FloatingActionButton.small(
@@ -224,8 +224,7 @@ class _FullMapScreenState extends State<FullMapScreen> {
     );
   }
 
-  // PERBAIKAN: TOMBOL AKSI UTAMA DI BAWAH
-  Widget _buildMainAction(List<HistoryItem> data) {
+  Widget _buildMainAction(List<dynamic> data) {
     return Positioned(
       bottom: 20,
       right: 15,

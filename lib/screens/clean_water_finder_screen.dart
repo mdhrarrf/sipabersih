@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../viewmodels/water_viewmodel.dart';
-import '../services/history_service.dart';
 import '../utils/constants.dart';
-import '../widgets/app_footer.dart'; // IMPORT FOOTER
+import '../widgets/app_footer.dart';
 
 class CleanWaterFinderScreen extends StatelessWidget {
   const CleanWaterFinderScreen({super.key});
 
-  // FUNGSI INTI: Membuka Google Maps untuk Navigasi
+  // Fungsi Navigasi
   Future<void> _openNavigation(double lat, double lng) async {
     final Uri url = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
     final Uri fallbackUrl = Uri.parse(
@@ -29,7 +28,10 @@ class CleanWaterFinderScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final waterVM = context.read<WaterViewModel>();
+    // 1. MENDENGARKAN DATA DARI VIEWMODEL (STATE-BASED)
+    // watch akan mendeteksi perubahan data di ViewModel secara otomatis
+    final waterVM = context.watch<WaterViewModel>();
+    final cleanPoints = waterVM.cleanWaterList;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -43,52 +45,48 @@ class CleanWaterFinderScreen extends StatelessWidget {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder<List<HistoryItem>>(
-        stream: waterVM.cleanWaterStream, // Hanya ambil yang AMAN
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      // 2. LOGIKA TAMPILAN TANPA STREAMBUILDER (ANT-STUCK)
+      body: waterVM.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : cleanPoints.isEmpty
+          ? _buildEmptyStateWithFooter()
+          : _buildListView(cleanPoints),
+    );
+  }
 
-          final cleanPoints = snapshot.data ?? [];
-
-          if (cleanPoints.isEmpty) {
-            // Jika kosong, tampilkan Empty State + Footer di bawahnya agar tetap rapi
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  const SizedBox(height: 100),
-                  _buildEmptyState(),
-                  const SizedBox(height: 100),
-                  const AppFooter(),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            // TAMBAHKAN +1 UNTUK MENAMPILKAN FOOTER DI AKHIR LIST
-            itemCount: cleanPoints.length + 1,
-            itemBuilder: (context, index) {
-              // Jika index sudah mencapai akhir list, tampilkan footer
-              if (index == cleanPoints.length) {
-                return const AppFooter();
-              }
-
-              final item = cleanPoints[index];
-              return _buildLocationCard(item);
-            },
-          );
-        },
+  // Tampilan jika data kosong (Termasuk Footer)
+  Widget _buildEmptyStateWithFooter() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          const SizedBox(height: 100),
+          _buildEmptyIllustration(),
+          const SizedBox(height: 100),
+          const AppFooter(),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  // Tampilan Daftar Lokasi (Termasuk Footer di akhir list)
+  Widget _buildListView(List<dynamic> cleanPoints) {
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      itemCount: cleanPoints.length + 1,
+      itemBuilder: (context, index) {
+        if (index == cleanPoints.length) {
+          return const AppFooter();
+        }
+        return _buildLocationCard(cleanPoints[index]);
+      },
+    );
+  }
+
+  Widget _buildEmptyIllustration() {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(20),
@@ -118,7 +116,7 @@ class CleanWaterFinderScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationCard(HistoryItem item) {
+  Widget _buildLocationCard(dynamic item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
@@ -126,7 +124,6 @@ class CleanWaterFinderScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: AppStyles.radiusL,
         boxShadow: AppStyles.softShadow,
-        // Border hijau tipis menandakan status AMAN
         border: Border.all(color: AppColors.success.withOpacity(0.2), width: 1),
       ),
       child: Column(
@@ -138,7 +135,7 @@ class CleanWaterFinderScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.local_drink_rounded,
@@ -155,14 +152,12 @@ class CleanWaterFinderScreen extends StatelessWidget {
                       "Titik Air Terverifikasi",
                       style: AppStyles.h2.copyWith(fontSize: 15),
                     ),
-                    const SizedBox(height: 2),
                     Text(
                       "Kualitas Layak Konsumsi (WQI: ${item.result.score})",
                       style: const TextStyle(
                         color: AppColors.success,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
@@ -171,7 +166,6 @@ class CleanWaterFinderScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          // Info Koordinat & Tombol Navigasi
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
@@ -202,7 +196,6 @@ class CleanWaterFinderScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                // Tombol Navigasi Mewah
                 ElevatedButton.icon(
                   onPressed: () => _openNavigation(
                     item.measure.latitude,
@@ -223,11 +216,7 @@ class CleanWaterFinderScreen extends StatelessWidget {
                   icon: const Icon(Icons.near_me_rounded, size: 16),
                   label: const Text(
                     "NAVIGASI",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      letterSpacing: 0.5,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                   ),
                 ),
               ],

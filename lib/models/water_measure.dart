@@ -35,16 +35,25 @@ class WaterMeasure {
 
   // PERBAIKAN: Menarik data koordinat dari Database kembali ke objek Flutter
   factory WaterMeasure.fromMap(Map<String, dynamic> map) {
+    // Ambil teks tanggal dari 'created_at' (format Supabase)
+    String dateStr =
+        map['created_at'] ??
+        map['timestamp'] ??
+        DateTime.now().toIso8601String();
+
+    // Konversi teks ke DateTime
+    DateTime utcTime = DateTime.parse(dateStr);
+
     return WaterMeasure(
       id: map['id'],
-      // Gunakan .toDouble() untuk keamanan tipe data num dari database
-      ph: (map['ph'] as num).toDouble(),
-      tds: (map['tds'] as num).toDouble(),
-      turbidity: (map['turbidity'] as num).toDouble(),
-      temperature: (map['temperature'] as num).toDouble(),
-      latitude: (map['latitude'] as num).toDouble(), // TAMBAHKAN INI
-      longitude: (map['longitude'] as num).toDouble(), // TAMBAHKAN INI
-      timestamp: DateTime.parse(map['timestamp'] ?? map['created_at']),
+      ph: (map['ph'] ?? 0.0 as num).toDouble(),
+      tds: (map['tds'] ?? 0.0 as num).toDouble(),
+      turbidity: (map['turbidity'] ?? 0.0 as num).toDouble(),
+      temperature: (map['temperature'] ?? 0.0 as num).toDouble(),
+      latitude: (map['latitude'] ?? 0.0 as num).toDouble(),
+      longitude: (map['longitude'] ?? 0.0 as num).toDouble(),
+      // KUNCI: Paksa konversi dari UTC ke waktu Lokal HP Anda
+      timestamp: utcTime.toLocal(),
     );
   }
 }

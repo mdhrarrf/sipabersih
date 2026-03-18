@@ -197,7 +197,9 @@ class HistoryScreen extends StatelessWidget {
                       children: [
                         _statusBadge(item),
                         Text(
-                          "${item.measure.timestamp.toString().substring(11, 16)} WIB",
+                          // SEBELUMNYA: Statis WIB
+                          // SESUDAH: Dinamis mengikuti lokasi petugas
+                          AppTime.formatTimeWithZone(item.measure.timestamp),
                           style: AppStyles.caption.copyWith(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,

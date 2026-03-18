@@ -70,3 +70,27 @@ class AppStyles {
     color: AppColors.textLight,
   );
 }
+
+class AppTime {
+  /// Mendapatkan label zona waktu (WIB/WITA/WIT) berdasarkan offset perangkat
+  static String getZoneLabel(DateTime dt) {
+    int offset = dt.timeZoneOffset.inHours;
+    switch (offset) {
+      case 7:
+        return "WIB";
+      case 8:
+        return "WITA";
+      case 9:
+        return "WIT";
+      default:
+        return "UTC+${offset}";
+    }
+  }
+
+  /// Format Jam:Menit + Label Zona Waktu
+  static String formatTimeWithZone(DateTime dt) {
+    String hour = dt.hour.toString().padLeft(2, '0');
+    String minute = dt.minute.toString().padLeft(2, '0');
+    return "$hour:$minute ${getZoneLabel(dt)}";
+  }
+}

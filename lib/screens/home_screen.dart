@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
-import 'package:provider/provider.dart'; // Import Provider
-import '../viewmodels/water_viewmodel.dart'; // Import ViewModel
+import 'package:provider/provider.dart';
+import 'package:sipabersih/services/history_service.dart';
+import '../viewmodels/water_viewmodel.dart';
 import 'clean_water_finder_screen.dart';
 import 'full_map_screen.dart';
 import '../utils/constants.dart';
-import '../services/history_service.dart';
-import '../widgets/app_footer.dart'; // Import Footer
+import '../widgets/app_footer.dart';
 import 'input_data_screen.dart';
 import 'history_screen.dart';
 import 'stats_screen.dart';
@@ -23,8 +23,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    // Akses ViewModel (Source of Truth)
+    // MENDENGARKAN VIEWMODEL (Status & Data)
     final waterVM = context.watch<WaterViewModel>();
+    final history = waterVM.history;
+    final lastData = history.isNotEmpty ? history.first : null;
+    final color = lastData?.result.color ?? AppColors.accentBlue;
+
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     const double headerHeight = 110.0;
 
@@ -32,62 +36,60 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // 1. HEADER TETAP (FIXED) - Tidak Bergeser
+          // 1. HEADER TETAP (FIXED) - Identitas Sistem
           _buildFixedHeader(statusBarHeight + headerHeight),
 
-          // 2. AREA SCROLLABLE
+          // 2. AREA KONTEN (SCROLLABLE)
           Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // MENGGUNAKAN DATA DARI VIEWMODEL (Anti-Spam Error)
-                  StreamBuilder<List<HistoryItem>>(
-                    stream: waterVM.waterStream,
-                    builder: (context, snapshot) {
-                      final history = snapshot.data ?? [];
-                      final lastData = history.isNotEmpty
-                          ? history.first
-                          : null;
-                      final color =
-                          lastData?.result.color ?? AppColors.accentBlue;
+            child: waterVM.isLoading && history.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // KARTU STATUS (Data dari ViewModel)
+                        _buildMainStatusCard(lastData, color),
 
-                      return Column(
-                        children: [
-                          _buildMainStatusCard(lastData, color),
-                          const SizedBox(height: 16),
-                          _buildMapPreview(history),
-                        ],
-                      );
-                    },
-                  ),
+                        const SizedBox(height: 16),
 
-                  const SizedBox(height: 32),
-                  Text(
-                    "Layanan Utama",
-                    style: AppStyles.h2.copyWith(
-                      fontSize: 16,
-                      letterSpacing: 0.5,
+                        // PRATINJAU PETA (Data dari ViewModel)
+                        _buildMapPreview(history),
+
+                        const SizedBox(height: 32),
+
+                        Text(
+                          "Layanan Utama",
+                          style: AppStyles.h2.copyWith(
+                            fontSize: 16,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildMenuGrid(),
+
+                        const SizedBox(height: 30),
+
+                        // 3. FOOTER IDENTITAS RESMI
+                        const AppFooter(),
+                        const SizedBox(height: 10),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildMenuGrid(),
-
-                  const SizedBox(height: 20),
-                  // 3. FOOTER IDENTITAS
-                  const AppFooter(),
-                ],
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-  // HEADER LOGO & JUDUL (Symmetrical)
+  // --- UI COMPONENTS ---
+
   Widget _buildFixedHeader(double totalHeight) {
     return Container(
       width: double.infinity,
@@ -111,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 48),
+                const SizedBox(width: 48), // Balancing spacer
                 Text(
                   "SIPABERSIH",
                   style: AppStyles.h1.copyWith(
@@ -134,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               "Industrial Monitoring Dashboard",
               style: TextStyle(
@@ -150,7 +152,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // KARTU STATUS (Compact & Consistent)
   Widget _buildMainStatusCard(HistoryItem? lastData, Color color) {
     return Container(
       width: double.infinity,
@@ -239,7 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // MAP PREVIEW (Consistent & Safe)
   Widget _buildMapPreview(List<HistoryItem> history) {
     ll.LatLng center = history.isNotEmpty
         ? ll.LatLng(
@@ -312,8 +312,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // --- WIDGET PENDUKUNG (GRID & PILLS) ---
 
   Widget _buildMenuGrid() {
     return GridView.count(

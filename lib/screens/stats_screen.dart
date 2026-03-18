@@ -5,22 +5,23 @@ import '../services/history_service.dart';
 import '../widgets/water_chart.dart';
 import '../utils/constants.dart';
 import '../models/water_measure.dart';
-import '../widgets/app_footer.dart'; // IMPORT FOOTER
+import '../widgets/app_footer.dart';
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Akses ViewModel
-    final waterVM = context.read<WaterViewModel>();
+    // 1. Ambil data dari ViewModel secara reaktif
+    final waterVM = context.watch<WaterViewModel>();
+    final history = waterVM.history;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // 1. Header Dinamis Ramping
+          // Header Dinamis (Tetap)
           SliverAppBar(
             expandedHeight: 100,
             pinned: true,
@@ -46,82 +47,79 @@ class StatsScreen extends StatelessWidget {
             ),
           ),
 
-          // 2. Konten Statistik Real-time
-          SliverToBoxAdapter(
-            child: StreamBuilder<List<HistoryItem>>(
-              stream: waterVM.waterStream, // Ambil dari ViewModel (MVVM)
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 100),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.accentBlue,
-                      ),
-                    ),
-                  );
-                }
-
-                final history = snapshot.data ?? [];
-
-                // Jika data kurang dari 2, tampilkan Empty State + Footer
-                if (history.length < 2) {
-                  return Column(
-                    children: [
-                      const SizedBox(height: 80),
-                      _buildEmptyState(),
-                      const SizedBox(height: 80),
-                      const AppFooter(),
-                    ],
-                  );
-                }
-
-                final measures = history.map((e) => e.measure).toList();
-
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionHeader(
-                            "Visualisasi Real-time TDS (ppm)",
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Kartu Grafik Premium
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: AppStyles.radiusL,
-                              boxShadow: AppStyles.softShadow,
-                            ),
-                            child: WaterChart(data: measures),
-                          ),
-
-                          const SizedBox(height: 32),
-                          _buildSectionHeader("Ringkasan Analitik"),
-                          const SizedBox(height: 16),
-                          _buildSummaryGrid(measures),
-
-                          const SizedBox(height: 32),
-                          _buildInsightCard(),
-                        ],
-                      ),
-                    ),
-
-                    // 3. FOOTER IDENTITAS (SINKRON DENGAN HALAMAN LAIN)
-                    const AppFooter(),
-                    const SizedBox(height: 20),
-                  ],
-                );
-              },
-            ),
-          ),
+          // 2. KONTEN UTAMA (Tanpa StreamBuilder agar tidak error)
+          SliverToBoxAdapter(child: _buildBody(context, waterVM, history)),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    WaterViewModel vm,
+    List<HistoryItem> data,
+  ) {
+    // Tampilan saat loading awal aplikasi
+    if (vm.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 100),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.accentBlue),
+        ),
+      );
+    }
+
+    // Tampilan saat data kurang dari 2 (Grafik tidak bisa muncul)
+    if (data.length < 2) {
+      return Column(
+        children: [
+          const SizedBox(height: 80),
+          _buildEmptyState(),
+          const SizedBox(height: 80),
+          const AppFooter(), // Tetap tampilkan footer di bawah walau kosong
+        ],
+      );
+    }
+
+    // Tampilan Utama jika data sudah siap
+    final measures = data.map((e) => e.measure).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionHeader("Visualisasi Real-time TDS (ppm)"),
+              const SizedBox(height: 16),
+
+              // Kartu Grafik Premium
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: AppStyles.radiusL,
+                  boxShadow: AppStyles.softShadow,
+                ),
+                child: WaterChart(data: measures),
+              ),
+
+              const SizedBox(height: 32),
+              _buildSectionHeader("Ringkasan Analitik"),
+              const SizedBox(height: 16),
+              _buildSummaryGrid(measures),
+
+              const SizedBox(height: 32),
+              _buildInsightCard(),
+            ],
+          ),
+        ),
+
+        // 3. FOOTER IDENTITAS
+        const AppFooter(),
+        const SizedBox(height: 20),
+      ],
     );
   }
 

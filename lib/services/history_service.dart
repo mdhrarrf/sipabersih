@@ -30,6 +30,8 @@ class HistoryService {
       'longitude': measure.longitude,
       'status': result.status,
       'score': result.score,
+      // KUNCI: Kirim waktu saat ini dalam format ISO yang lengkap
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
 

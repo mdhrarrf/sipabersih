@@ -2,6 +2,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import 'package:sipabersih/utils/constants.dart';
 import '../services/history_service.dart';
 
 class ReportService {
@@ -101,19 +102,20 @@ class ReportService {
             // 3. TABEL DATA
             pw.TableHelper.fromTextArray(
               headers: ['No', 'Waktu Pengukuran', 'pH', 'TDS', 'NTU', 'Status'],
-              data: List<List<dynamic>>.generate(
-                history.length,
-                (index) => [
+              data: List<List<dynamic>>.generate(history.length, (index) {
+                final dt = history[index].measure.timestamp;
+                return [
                   index + 1,
-                  DateFormat(
-                    'dd/MM/yy HH:mm',
-                  ).format(history[index].measure.timestamp),
+                  // Tambahkan label zona waktu di belakang jam
+                  DateFormat('dd/MM/yy HH:mm').format(dt) +
+                      " " +
+                      AppTime.getZoneLabel(dt),
                   history[index].measure.ph.toStringAsFixed(1),
                   "${history[index].measure.tds.toInt()} ppm",
                   "${history[index].measure.turbidity.toInt()} NTU",
                   history[index].result.status,
-                ],
-              ),
+                ];
+              }),
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,

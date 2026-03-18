@@ -66,19 +66,28 @@ class AuthViewModel extends ChangeNotifier {
 
   // 3. Logika Ambil Profil & Statistik (Data Nyata)
   Future<void> fetchFullProfile() async {
+    // Jika sudah loading, jangan jalankan lagi (mencegah loop)
+    if (_isLoading) return;
+
+    _isLoading = true;
     _errorMessage = null;
-    // Jangan set loading true di sini jika sedang dipanggil dari login/update
-    // agar tidak terjadi double spinner
+    notifyListeners(); // Beritahu UI untuk tampilkan spinner
+
     try {
+      // Berikan batas waktu 10 detik agar tidak loading selamanya
       final results = await Future.wait([
         _authService.getProfile(),
         _authService.getTotalMeasures(),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
+
       _userProfile = results[0] as Map<String, dynamic>?;
       _totalMeasures = results[1] as int;
-      notifyListeners();
     } catch (e) {
-      _errorMessage = "Gagal memuat data profil.";
+      _errorMessage = "Gagal sinkronisasi data pusat.";
+      debugPrint("Error Fetch: $e");
+    } finally {
+      // KUNCI: Apapun yang terjadi (Error/Sukses), loading HARUS dimatikan
+      _isLoading = false;
       notifyListeners();
     }
   }
