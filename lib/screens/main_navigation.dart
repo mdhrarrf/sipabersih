@@ -13,7 +13,6 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  // Daftar halaman yang bisa diakses lewat navbar
   final List<Widget> _pages = [const HomeScreen(), const ProfileScreen()];
 
   @override
@@ -32,23 +31,25 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
         child: NavigationBar(
           selectedIndex: _currentIndex,
-          onDestinationSelected: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
+          onDestinationSelected: (index) =>
+              setState(() => _currentIndex = index),
           backgroundColor: Colors.white,
           elevation: 10,
-          height: 70,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home, color: AppColors.accentBlue),
+              selectedIcon: Icon(
+                Icons.home_rounded,
+                color: AppColors.accentBlue,
+              ),
               label: 'Beranda',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person, color: AppColors.accentBlue),
+              selectedIcon: Icon(
+                Icons.person_rounded,
+                color: AppColors.accentBlue,
+              ),
               label: 'Profil',
             ),
           ],
