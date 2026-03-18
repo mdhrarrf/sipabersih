@@ -43,4 +43,9 @@ class WaterViewModel extends ChangeNotifier {
     _isLoading = value;
     notifyListeners();
   }
+
+  Stream<List<HistoryItem>> get cleanWaterStream =>
+      HistoryService.getHistoryStream().map(
+        (list) => list.where((item) => item.result.status == "AMAN").toList(),
+      );
 }

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:sipabersih/screens/clean_water_finder_screen.dart';
+import 'package:sipabersih/screens/full_map_screen.dart';
 import '../utils/constants.dart';
 import '../services/history_service.dart';
 import 'input_data_screen.dart';
@@ -16,47 +20,39 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    // Menghitung status bar agar lengkungan tidak tergeser notch HP
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    const double fixedContentHeight = 150.0; // TINGGI TETAP AREA BIRU
+    // Tinggi header dikunci agar pas untuk AppBar dan Identitas
+    const double headerHeight = 110.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
+      body: Column(
+        // GUNAKAN COLUMN AGAR BISA MEMBAGI AREA TETAP DAN AREA SCROLL
         children: [
-          // 1. BACKGROUND TETAP (Lengkungan Terkunci di Sini)
-          _buildHeroBackground(statusBarHeight + fixedContentHeight),
+          // 1. HEADER BIRU TETAP (FIXED)
+          _buildFixedHeader(statusBarHeight + headerHeight),
 
-          // 2. KONTEN SCROLLABLE
-          SafeArea(
-            bottom: false,
-            child: CustomScrollView(
+          // 2. AREA KONTEN YANG BISA DI-SCROLL
+          Expanded(
+            child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              slivers: [
-                // AppBar Ramping & Simetris
-                _buildSliverAppBar(),
-
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 10),
-                        _buildMainStatusCard(), // Kartu Status Utama
-                        const SizedBox(height: 32),
-                        Text(
-                          "Layanan Utama",
-                          style: AppStyles.h2.copyWith(fontSize: 16),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildMenuGrid(),
-                        const SizedBox(height: 40),
-                      ],
-                    ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildMainStatusCard(),
+                  const SizedBox(height: 16),
+                  _buildMapPreview(), // Pratinjau Peta
+                  const SizedBox(height: 32),
+                  Text(
+                    "Layanan Utama",
+                    style: AppStyles.h2.copyWith(fontSize: 16),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  _buildMenuGrid(),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ],
@@ -64,16 +60,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // LENGKUNGAN SIMETRIS & TERKUNCI
-  Widget _buildHeroBackground(double totalHeight) {
+  // WIDGET HEADER TETAP (Tidak akan ikut scroll)
+  Widget _buildFixedHeader(double totalHeight) {
     return Container(
-      height: totalHeight,
       width: double.infinity,
+      height: totalHeight,
       decoration: const BoxDecoration(
         gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(32), // Nilai lengkungan simetris kiri-kanan
-        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
@@ -82,51 +76,176 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // AppBar Ramping di dalam header tetap
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(width: 48), // Spacer agar judul tetap tengah
+                Text(
+                  "SIPABERSIH",
+                  style: AppStyles.h1.copyWith(
+                    color: Colors.white,
+                    fontSize: 18,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: () {},
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              "Sistem Monitoring Air Nasional",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildSliverAppBar() {
-    return SliverAppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      pinned: true,
-      centerTitle: true, // Judul selalu di tengah
-      toolbarHeight: 60,
-      automaticallyImplyLeading: false,
-      title: Text(
-        "SIPABERSIH",
-        style: AppStyles.h1.copyWith(
-          color: Colors.white,
-          fontSize: 18,
-          letterSpacing: 2,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.notifications_none_rounded,
+  // --- WIDGET PETA PRATINJAU (Tetap Sama) ---
+  Widget _buildMapPreview() {
+    return StreamBuilder<List<HistoryItem>>(
+      stream: HistoryService.getHistoryStream(),
+      builder: (context, snapshot) {
+        final history = snapshot.data ?? [];
+        ll.LatLng center = history.isNotEmpty
+            ? ll.LatLng(
+                history.first.measure.latitude,
+                history.first.measure.longitude,
+              )
+            : const ll.LatLng(-6.2000, 106.8166);
+
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FullMapScreen()),
+            );
+          },
+          borderRadius: AppStyles.radiusL,
+          child: Container(
+            width: double.infinity,
+            height: 140,
+            decoration: BoxDecoration(
               color: Colors.white,
-              size: 24,
+              borderRadius: AppStyles.radiusL,
+              boxShadow: AppStyles.softShadow,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: ClipRRect(
+              borderRadius: AppStyles.radiusL,
+              child: Stack(
+                children: [
+                  IgnorePointer(
+                    child: fm.FlutterMap(
+                      options: fm.MapOptions(
+                        initialCenter: center,
+                        initialZoom: 10,
+                        interactionOptions: const fm.InteractionOptions(
+                          flags: fm.InteractiveFlag.none,
+                        ),
+                      ),
+                      children: [
+                        fm.TileLayer(
+                          urlTemplate:
+                              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          userAgentPackageName: 'id.sipabersih.pro',
+                        ),
+                        fm.MarkerLayer(
+                          markers: history.map((item) {
+                            return fm.Marker(
+                              point: ll.LatLng(
+                                item.measure.latitude,
+                                item.measure.longitude,
+                              ),
+                              width: 30,
+                              height: 30,
+                              child: Icon(
+                                Icons.location_on,
+                                color: item.result.status == "AMAN"
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 20,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildMapOverlay(),
+                ],
+              ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMapOverlay() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black.withOpacity(0.4), Colors.transparent],
         ),
-      ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.map_rounded, color: Colors.white, size: 14),
+              const SizedBox(width: 8),
+              Text(
+                "SEBARAN TITIK AIR",
+                style: AppStyles.caption.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const Icon(Icons.fullscreen_rounded, color: Colors.white70, size: 18),
+        ],
+      ),
     );
   }
 
   Widget _buildMainStatusCard() {
-    // Kita gunakan StreamBuilder agar Real-time dan konsisten
     return StreamBuilder<List<HistoryItem>>(
       stream: HistoryService.getHistoryStream(),
       builder: (context, snapshot) {
         final history = snapshot.data ?? [];
         final lastData = history.isNotEmpty ? history.first : null;
-
-        // Jika kosong gunakan Biru, jika ada gunakan warna status (Hijau/Kuning/Merah)
         final color = lastData?.result.color ?? AppColors.accentBlue;
 
         return Container(
@@ -140,7 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // BARIS 1: Header & Skor
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -158,7 +276,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  // Skor selalu tampil (jika null tampilkan --)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -181,10 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
-              // BARIS 2: Teks Status (Ukurannya dikunci agar tidak berubah)
               Text(
                 lastData?.result.status ?? "BELUM ADA DATA",
                 style: AppStyles.h1.copyWith(
@@ -193,10 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // BARIS 3: Quick Stats (SEKARANG SELALU TAMPIL AGAR UKURAN TETAP)
               Row(
                 children: [
                   _miniPill(
@@ -226,12 +337,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Fungsi pembantu Pill dengan warna dinamis
   Widget _miniPill(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        // Jika data kosong, gunakan warna background standar
         color: label.contains("--")
             ? AppColors.background
             : color.withOpacity(0.1),
@@ -255,6 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
+      childAspectRatio: 1.1,
       children: [
         _menuCard(
           "Input Data",
@@ -263,9 +373,15 @@ class _HomeScreenState extends State<HomeScreen> {
           const InputDataScreen(),
         ),
         _menuCard(
+          "Lokasi Air",
+          Icons.local_drink_rounded,
+          AppColors.success,
+          const CleanWaterFinderScreen(),
+        ),
+        _menuCard(
           "Riwayat",
           Icons.history_edu_rounded,
-          AppColors.success,
+          Colors.orange,
           const HistoryScreen(),
         ),
         _menuCard(
@@ -278,6 +394,12 @@ class _HomeScreenState extends State<HomeScreen> {
           "Pusat Bantuan",
           Icons.support_agent_rounded,
           AppColors.danger,
+          const HelpCenterScreen(),
+        ),
+        _menuCard(
+          "Panduan",
+          Icons.menu_book_rounded,
+          Colors.teal,
           const HelpCenterScreen(),
         ),
       ],

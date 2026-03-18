@@ -12,7 +12,7 @@ class HistoryItem {
 class HistoryService {
   static final _supabase = Supabase.instance.client;
 
-  // 1. SIMPAN DATA KE CLOUD SUPABASE
+  // 1. SIMPAN DATA KE CLOUD SUPABASE (Sudah benar)
   static Future<void> addHistory(
     WaterMeasure measure,
     AnalysisResult result,
@@ -21,18 +21,19 @@ class HistoryService {
     if (user == null) return;
 
     await _supabase.from('water_measures').insert({
-      'petugas_id': user.id, // Ambil dari auth.currentUser!.id
+      'petugas_id': user.id,
       'ph': measure.ph,
       'tds': measure.tds,
       'turbidity': measure.turbidity,
       'temperature': measure.temperature,
+      'latitude': measure.latitude, // KIRIM KE CLOUD
+      'longitude': measure.longitude, // KIRIM KE CLOUD
       'status': result.status,
       'score': result.score,
-      // created_at tidak perlu diisi karena sudah default now() di DB
     });
   }
 
-  // 2. AMBIL SEMUA DATA DARI CLOUD (Urutkan dari yang terbaru)
+  // 2. AMBIL SEMUA DATA (Sinkronisasi Koordinat)
   static Future<List<HistoryItem>> getHistory() async {
     final response = await _supabase
         .from('water_measures')
@@ -42,34 +43,32 @@ class HistoryService {
     final List data = response as List;
 
     return data.map((item) {
-      // Mapping dari JSON Supabase kembali ke Model
       final measure = WaterMeasure(
         id: item['id'],
-        ph: item['ph'].toDouble(),
-        tds: item['tds'].toDouble(),
-        turbidity: item['turbidity'].toDouble(),
-        temperature: item['temperature'].toDouble(),
+        ph: (item['ph'] as num).toDouble(),
+        tds: (item['tds'] as num).toDouble(),
+        turbidity: (item['turbidity'] as num).toDouble(),
+        temperature: (item['temperature'] as num).toDouble(),
+        latitude: (item['latitude'] as num).toDouble(), // AMBIL DARI CLOUD
+        longitude: (item['longitude'] as num).toDouble(), // AMBIL DARI CLOUD
         timestamp: DateTime.parse(item['created_at']),
       );
 
-      // Re-generate result untuk UI (warna & rekomendasi)
       final analysisResult = AnalysisService.calculateQuality(measure);
-
       return HistoryItem(measure: measure, result: analysisResult);
     }).toList();
   }
 
-  // 3. AMBIL DATA TERAKHIR UNTUK DASHBOARD
   static Future<HistoryItem?> getLastData() async {
     final history = await getHistory();
     return history.isNotEmpty ? history.first : null;
   }
 
-  // 4. HAPUS DATA DI CLOUD
   static Future<void> deleteHistory(int id) async {
     await _supabase.from('water_measures').delete().eq('id', id);
   }
 
+  // 3. STREAM DATA (Sinkronisasi Koordinat)
   static Stream<List<HistoryItem>> getHistoryStream() {
     return _supabase
         .from('water_measures')
@@ -80,10 +79,14 @@ class HistoryService {
               .map((item) {
                 final measure = WaterMeasure(
                   id: item['id'],
-                  ph: item['ph'].toDouble(),
-                  tds: item['tds'].toDouble(),
-                  turbidity: item['turbidity'].toDouble(),
-                  temperature: item['temperature'].toDouble(),
+                  ph: (item['ph'] as num).toDouble(),
+                  tds: (item['tds'] as num).toDouble(),
+                  turbidity: (item['turbidity'] as num).toDouble(),
+                  temperature: (item['temperature'] as num).toDouble(),
+                  latitude: (item['latitude'] as num)
+                      .toDouble(), // AMBIL DARI CLOUD
+                  longitude: (item['longitude'] as num)
+                      .toDouble(), // AMBIL DARI CLOUD
                   timestamp: DateTime.parse(item['created_at']),
                 );
                 final analysisResult = AnalysisService.calculateQuality(
@@ -93,7 +96,7 @@ class HistoryService {
               })
               .toList()
               .reversed
-              .toList(); // Urutkan yang terbaru di atas
+              .toList();
         });
   }
 }
